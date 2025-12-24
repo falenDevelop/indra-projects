@@ -5,3 +5,9 @@
 [build.environment]
   NODE_VERSION = "22"
   NPM_VERSION = "10.9.4"
+
+# Redirección para SPA (React Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
