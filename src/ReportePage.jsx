@@ -15,6 +15,9 @@ const ReportePage = () => {
 
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [dateFilterMode, setDateFilterMode] = useState('ayer');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [showFocalModal, setShowFocalModal] = useState(false);
   const [currentUserName, setCurrentUserName] = useState('');
 
@@ -79,6 +82,9 @@ const ReportePage = () => {
   const handleUserClick = (userName, userXp, moduleId) => {
     setSelectedModule(moduleId);
     setSelectedUser({ nombre: userName, xp: userXp });
+    setDateFilterMode('ayer');
+    setCustomStart('');
+    setCustomEnd('');
     setShowUserModal(true);
   };
 
@@ -341,8 +347,15 @@ const ReportePage = () => {
                             </span>
                           </td>
                           {developmentTypes.map((type) => {
-                            const percentage =
-                              module.porcentajesPorTipo[type] || 0;
+                            const hasType =
+                              module.porcentajesPorTipo &&
+                              Object.prototype.hasOwnProperty.call(
+                                module.porcentajesPorTipo,
+                                type
+                              );
+                            const percentage = hasType
+                              ? module.porcentajesPorTipo[type]
+                              : null;
                             return (
                               <td
                                 key={type}
@@ -354,11 +367,17 @@ const ReportePage = () => {
                                 style={{ cursor: 'pointer' }}
                                 title={`Ver actividades de ${type}`}
                               >
-                                <span
-                                  className={`badge bg-${getProgressColor(percentage)}`}
-                                >
-                                  {percentage.toFixed(1)}%
-                                </span>
+                                {percentage === null ? (
+                                  <span className="text-muted">No aplica</span>
+                                ) : (
+                                  <span
+                                    className={`badge bg-${getProgressColor(
+                                      percentage
+                                    )}`}
+                                  >
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                )}
                               </td>
                             );
                           })}
@@ -615,94 +634,186 @@ const ReportePage = () => {
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            Todas las actividades de {selectedUser?.nombre}
+            Registro de actividades de {selectedUser?.nombre}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {userActivities && selectedUser ? (
             <div>
+              <div className="mb-3 d-flex align-items-center gap-2">
+                <label className="form-label mb-0">Filtrar por:</label>
+                <select
+                  className="form-select w-auto"
+                  value={dateFilterMode}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDateFilterMode(v);
+                    if (v === 'ayer') {
+                      setCustomStart('');
+                      setCustomEnd('');
+                    }
+                  }}
+                >
+                  <option value="ayer">Ayer</option>
+                  <option value="personalizado">Personalizado</option>
+                </select>
+                {dateFilterMode === 'personalizado' && (
+                  <div className="d-flex gap-2 ms-2">
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                    />
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
               <h5 className="mb-4">
-                Todas las actividades registradas por {selectedUser.nombre}
+                Actividades registradas por {selectedUser.nombre}
               </h5>
-              {userActivities.length > 0 ? (
-                userActivities.map((activity) => {
-                  const fromYesterday = isYesterday(activity.createdAt);
-                  return (
-                    <div
-                      key={activity._id}
-                      className="card mb-3"
-                      style={{
-                        backgroundColor: fromYesterday
-                          ? '#fff9e6'
-                          : 'transparent',
-                        borderLeft: fromYesterday
-                          ? '4px solid #ffc107'
-                          : 'none',
-                      }}
-                    >
-                      <div className="card-header bg-light d-flex justify-content-between align-items-center">
-                        <div>
-                          <span className="badge bg-primary me-2">
-                            {activity.moduleName}
-                          </span>
-                          <span className="badge bg-info">
-                            {activity.taskName}
-                          </span>
+              {/** compute filtered activities based on dateFilterMode */}
+              {(() => {
+                const msPerDay = 24 * 60 * 60 * 1000;
+                let filtered = userActivities || [];
+                if (dateFilterMode === 'ayer') {
+                  filtered = filtered.filter((a) => isYesterday(a.createdAt));
+                } else if (dateFilterMode === 'personalizado') {
+                  if (customStart && customEnd) {
+                    const [sy, sm, sd] = customStart.split('-').map(Number);
+                    const [ey, em, ed] = customEnd.split('-').map(Number);
+                    const startUtc = Date.UTC(sy, sm - 1, sd);
+                    const endUtc = Date.UTC(ey, em - 1, ed) + msPerDay - 1;
+                    filtered = filtered.filter(
+                      (a) => a.createdAt >= startUtc && a.createdAt <= endUtc
+                    );
+                  } else {
+                    filtered = [];
+                  }
+                }
+                return filtered.length > 0 ? (
+                  filtered.map((activity) => {
+                    const fromYesterday = isYesterday(activity.createdAt);
+                    return (
+                      <div
+                        key={activity._id}
+                        className="card mb-3"
+                        style={{
+                          backgroundColor: fromYesterday
+                            ? '#fff9e6'
+                            : 'transparent',
+                          borderLeft: fromYesterday
+                            ? '4px solid #ffc107'
+                            : 'none',
+                        }}
+                      >
+                        <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                          <div>
+                            <span className="badge bg-primary me-2">
+                              {activity.moduleName}
+                            </span>
+                            <span className="badge bg-info">
+                              {activity.taskName}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="card-body">
-                        <strong className="d-block mb-2">
-                          {activity.descripcion}
-                        </strong>
-                        <div className="d-flex justify-content-between align-items-center">
-                          <small className="text-muted">
-                            {new Date(activity.createdAt).toLocaleString(
-                              'es-PE'
-                            )}
-                          </small>
-                          <div className="text-end">
-                            <div>
-                              <span className="badge bg-secondary">
-                                {activity.porcentajeAnterior}%
-                              </span>
-                              {' → '}
-                              <span
-                                className={`badge bg-${getPercentVariant(
-                                  activity.porcentajeNuevo
-                                )}`}
-                              >
-                                {activity.porcentajeNuevo}%
-                              </span>
-                            </div>
-                            <small
-                              className={`fw-bold ${
-                                activity.porcentajeNuevo >
-                                activity.porcentajeAnterior
-                                  ? 'text-success'
-                                  : 'text-danger'
-                              }`}
-                            >
-                              {activity.porcentajeNuevo >
-                              activity.porcentajeAnterior
-                                ? '+'
-                                : ''}
-                              {(
-                                activity.porcentajeNuevo -
-                                activity.porcentajeAnterior
-                              ).toFixed(1)}
-                              %
+                        <div className="card-body">
+                          <strong className="d-block mb-2">
+                            {activity.descripcion}
+                          </strong>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <small className="text-muted">
+                              {new Date(activity.createdAt).toLocaleString(
+                                'es-PE'
+                              )}
                             </small>
+                            <div className="text-end">
+                              <div>
+                                <span className="badge bg-secondary">
+                                  {activity.porcentajeAnterior}%
+                                </span>
+                                {' → '}
+                                <span
+                                  className={`badge bg-${getPercentVariant(
+                                    activity.porcentajeNuevo
+                                  )}`}
+                                >
+                                  {activity.porcentajeNuevo}%
+                                </span>
+                              </div>
+                              <small
+                                className={`fw-bold ${
+                                  activity.porcentajeNuevo >
+                                  activity.porcentajeAnterior
+                                    ? 'text-success'
+                                    : 'text-danger'
+                                }`}
+                              >
+                                {activity.porcentajeNuevo >
+                                activity.porcentajeAnterior
+                                  ? '+'
+                                  : ''}
+                                {(
+                                  activity.porcentajeNuevo -
+                                  activity.porcentajeAnterior
+                                ).toFixed(1)}
+                                %
+                              </small>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    );
+                  })
+                ) : (
+                  <div className="alert alert-warning">
+                    No hay actividades registradas por {selectedUser.nombre}.
+                  </div>
+                );
+              })()}
+              {/* Tareas para hoy (si hay módulo seleccionado) */}
+              {moduleActivities &&
+                moduleActivities.tasks &&
+                (() => {
+                  const today = new Date();
+                  const yyyy = today.getFullYear();
+                  const mm = String(today.getMonth() + 1).padStart(2, '0');
+                  const dd = String(today.getDate()).padStart(2, '0');
+                  const todayStr = `${yyyy}-${mm}-${dd}`;
+                  const tasksToday = moduleActivities.tasks.filter(
+                    (t) => t.fechaInicio === todayStr
                   );
-                })
-              ) : (
-                <div className="alert alert-warning">
-                  No hay actividades registradas por {selectedUser.nombre}.
-                </div>
-              )}
+                  return tasksToday.length > 0 ? (
+                    <div className="mt-4">
+                      <h6>Tareas para hoy</h6>
+                      <div className="list-group">
+                        {tasksToday.map((t) => (
+                          <div
+                            key={t._id}
+                            className="list-group-item d-flex justify-content-between align-items-center"
+                          >
+                            <div>
+                              <strong>{t.nombre}</strong>
+                              <div className="small text-muted">
+                                {t.fechaInicio} - {t.fechaFinal}
+                              </div>
+                            </div>
+                            <span
+                              className={`badge bg-${getProgressColor(t.porcentaje)}`}
+                            >
+                              {t.porcentaje}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
             </div>
           ) : (
             <div className="text-center">
@@ -713,7 +824,16 @@ const ReportePage = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowUserModal(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowUserModal(false);
+              setDateFilterMode('ayer');
+              setCustomStart('');
+              setCustomEnd('');
+              setSelectedUser(null);
+            }}
+          >
             Cerrar
           </Button>
         </Modal.Footer>

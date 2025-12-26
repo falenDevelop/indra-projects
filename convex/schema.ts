@@ -72,4 +72,15 @@ export default defineSchema({
     registradoPor: v.optional(v.string()), // Nombre del usuario que registró
     registradoPorXp: v.optional(v.string()), // XP del usuario que registró
   }),
+  defects: defineTable({
+    moduleId: v.id('modules'),
+    ticket: v.string(),
+    comentario: v.optional(v.string()),
+    estado: v.string(),
+    usuario: v.optional(v.string()),
+    contrasena: v.optional(v.string()),
+    creadoPor: v.optional(v.string()),
+    creadoPorXp: v.optional(v.string()),
+    creadoAt: v.number(),
+  }),
 });

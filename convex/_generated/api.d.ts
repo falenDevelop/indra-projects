@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as block_modules from "../block_modules.js";
 import type * as blocks from "../blocks.js";
+import type * as defects from "../defects.js";
 import type * as development_types from "../development_types.js";
 import type * as getUserActivities from "../getUserActivities.js";
 import type * as module_tasks from "../module_tasks.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   block_modules: typeof block_modules;
   blocks: typeof blocks;
+  defects: typeof defects;
   development_types: typeof development_types;
   getUserActivities: typeof getUserActivities;
   module_tasks: typeof module_tasks;

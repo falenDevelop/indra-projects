@@ -13,6 +13,7 @@ import {
   Form,
   Alert,
 } from 'react-bootstrap';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from './AuthContext';
@@ -27,6 +28,119 @@ const TrackingPage = () => {
   });
 
   const { currentUser } = useAuth();
+  const [showDefectsModal, setShowDefectsModal] = useState(false);
+  const [selectedDefectModuleId, setSelectedDefectModuleId] = useState(null);
+  const [defectForm, setDefectForm] = useState({
+    ticket: '',
+    comentario: '',
+    estado: 'Pendiente',
+  });
+  const [editingDefectId, setEditingDefectId] = useState(null);
+  // Convex-backed defects (loaded per selected defect module)
+  const defectsQuery = useQuery(
+    api.defects.listByModule,
+    selectedDefectModuleId ? { moduleId: selectedDefectModuleId } : 'skip'
+  );
+
+  const createDefect = useMutation(api.defects.create);
+  const updateDefect = useMutation(api.defects.update);
+  const removeDefect = useMutation(api.defects.remove);
+
+  const DEFECT_STATES = [
+    'Pendiente',
+    'Validar QA',
+    'Procesos',
+    'Validacion Banco',
+    'Observado',
+    'Bloqueante',
+    'Resuelto',
+    'Otro',
+  ];
+
+  const isQAorLeader = () =>
+    currentUser?.perfil === 'QA' || currentUser?.perfil === 'Lider Tecnico';
+
+  // local persistence removed — use Convex mutations instead
+
+  const handleShowDefects = (moduleId) => {
+    setSelectedDefectModuleId(moduleId);
+    setEditingDefectId(null);
+    setDefectForm({
+      ticket: '',
+      comentario: '',
+      estado: 'Pendiente',
+    });
+    setShowDefectsModal(true);
+  };
+
+  const handleCloseDefects = () => {
+    setShowDefectsModal(false);
+    setSelectedDefectModuleId(null);
+  };
+
+  const handleSaveDefect = (e) => {
+    e.preventDefault();
+    if (!selectedDefectModuleId) return;
+    (async () => {
+      try {
+        if (editingDefectId) {
+          await updateDefect({ id: editingDefectId, ...defectForm });
+        } else {
+          await createDefect({
+            moduleId: selectedDefectModuleId,
+            ...defectForm,
+            creadoPor: currentUser?.nombre || 'Usuario desconocido',
+            creadoPorXp: currentUser?.xp || 'N/A',
+            creadoAt: Date.now(),
+          });
+        }
+      } catch (err) {
+        console.error('Error saving defect:', err);
+        alert('Error al guardar el defecto');
+      } finally {
+        setEditingDefectId(null);
+        setDefectForm({
+          ticket: '',
+          comentario: '',
+          estado: 'Pendiente',
+        });
+      }
+    })();
+  };
+
+  const handleEditDefect = (defect) => {
+    setEditingDefectId(defect.id);
+    setDefectForm({
+      ticket: defect.ticket,
+      comentario: defect.comentario,
+      estado: defect.estado,
+    });
+  };
+
+  const handleDeleteDefect = (id) => {
+    if (!selectedDefectModuleId) return;
+    if (!window.confirm('¿Eliminar este defecto?')) return;
+    (async () => {
+      try {
+        await removeDefect(id);
+      } catch (err) {
+        console.error('Error removing defect:', err);
+        alert('Error al eliminar el defecto');
+      }
+    })();
+  };
+
+  const handleChangeDefectState = (id, estado) => {
+    if (!selectedDefectModuleId) return;
+    (async () => {
+      try {
+        await updateDefect({ id, estado });
+      } catch (err) {
+        console.error('Error updating defect state:', err);
+        alert('Error al actualizar el estado del defecto');
+      }
+    })();
+  };
 
   // Convex hooks
   const blocksData = useQuery(api.blocks.list);
@@ -103,6 +217,26 @@ const TrackingPage = () => {
     }
   };
 
+  const computeInclusiveDays = (startStr, endStr) => {
+    if (!startStr || !endStr) return undefined;
+    const p = (s) => s.split('-').map((n) => Number(n));
+    try {
+      const [sy, sm, sd] = p(startStr);
+      const [ey, em, ed] = p(endStr);
+      const start = Date.UTC(sy, sm - 1, sd);
+      const end = Date.UTC(ey, em - 1, ed);
+      const msPerDay = 24 * 60 * 60 * 1000;
+      let count = 0;
+      for (let t = start; t <= end; t += msPerDay) {
+        const dow = new Date(t).getUTCDay();
+        if (dow !== 0 && dow !== 6) count += 1; // exclude Sundays(0) and Saturdays(6)
+      }
+      return count; // may be 0 if no weekdays in range
+    } catch {
+      return undefined;
+    }
+  };
+
   // Agrupar equipos por bloque
   const teamsByBlock = useMemo(() => {
     if (!teamsData) return {};
@@ -134,7 +268,7 @@ const TrackingPage = () => {
 
       <Row>
         {/* Panel izquierdo - Bloques y Equipos */}
-        <Col md={selectedModuleId ? 6 : 12}>
+        <Col md={selectedModuleId ? 4 : 12}>
           <Accordion defaultActiveKey="0">
             {(blocksData || []).map((block, index) => {
               const teams = teamsByBlock[block.nombre] || [];
@@ -260,6 +394,21 @@ const TrackingPage = () => {
                                                     : 'Ver'}
                                                 </Button>
                                               )}
+                                              {module && (
+                                                <div className="mt-1">
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline-danger"
+                                                    onClick={() =>
+                                                      handleShowDefects(
+                                                        module._id
+                                                      )
+                                                    }
+                                                  >
+                                                    Defectos
+                                                  </Button>
+                                                </div>
+                                              )}
                                             </div>
 
                                             {/* Lista de proveedores/responsables */}
@@ -340,7 +489,7 @@ const TrackingPage = () => {
 
         {/* Panel derecho - Tareas del módulo seleccionado */}
         {selectedModuleId && (
-          <Col md={6}>
+          <Col md={8}>
             <Card className="sticky-top" style={{ top: '20px' }}>
               <Card.Header className="bg-info text-white">
                 <div className="d-flex justify-content-between align-items-center">
@@ -408,7 +557,7 @@ const TrackingPage = () => {
                         <tr>
                           <th>Actividad</th>
                           <th>Tipo</th>
-                          <th>Fechas</th>
+                          <th style={{ minWidth: '200px' }}>Fechas</th>
                           <th>Progreso</th>
                         </tr>
                       </thead>
@@ -431,16 +580,33 @@ const TrackingPage = () => {
                                 <Badge bg="secondary">
                                   {devType?.nombre || '-'}
                                 </Badge>
-                                {devType?.numeroDias && (
-                                  <small className="text-muted d-block">
-                                    {devType.numeroDias} días
-                                  </small>
-                                )}
+                                {(() => {
+                                  const dias = computeInclusiveDays(
+                                    task.fechaInicio,
+                                    task.fechaFinal
+                                  );
+                                  if (dias !== undefined) {
+                                    return (
+                                      <small className="text-muted d-block">
+                                        {`${dias} día${dias !== 1 ? 's' : ''}`}
+                                      </small>
+                                    );
+                                  }
+                                  if (devType?.numeroDias !== undefined) {
+                                    return (
+                                      <small className="text-muted d-block">
+                                        {`${devType.numeroDias} día${devType.numeroDias !== 1 ? 's' : ''}`}
+                                      </small>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </td>
-                              <td>
+                              <td style={{ minWidth: '200px' }}>
                                 <small>
-                                  <div>{task.fechaInicio}</div>
-                                  <div>{task.fechaFinal}</div>
+                                  <div>
+                                    {task.fechaInicio} / {task.fechaFinal}
+                                  </div>
                                 </small>
                               </td>
                               <td>
@@ -479,6 +645,174 @@ const TrackingPage = () => {
       </Row>
 
       {/* Modal de Actividades */}
+      {/* Modal de Defectos */}
+      <Modal show={showDefectsModal} onHide={handleCloseDefects} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Defectos</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="mb-3">
+            {!isQAorLeader() ? (
+              <div className="alert alert-info">
+                Solo lectura: no tiene permisos para crear/editar defectos.
+              </div>
+            ) : (
+              <Form onSubmit={handleSaveDefect} className="mb-3">
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Ticket</Form.Label>
+                      <Form.Control
+                        value={defectForm.ticket}
+                        onChange={(e) =>
+                          setDefectForm((f) => ({
+                            ...f,
+                            ticket: e.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Estado</Form.Label>
+                      <Form.Select
+                        value={defectForm.estado}
+                        onChange={(e) =>
+                          setDefectForm((f) => ({
+                            ...f,
+                            estado: e.target.value,
+                          }))
+                        }
+                      >
+                        {DEFECT_STATES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group className="mb-2">
+                  <Form.Label>Comentario</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={defectForm.comentario}
+                    onChange={(e) =>
+                      setDefectForm((f) => ({
+                        ...f,
+                        comentario: e.target.value,
+                      }))
+                    }
+                  />
+                </Form.Group>
+                <div className="d-flex gap-2">
+                  <Button type="submit" variant="primary">
+                    {editingDefectId ? 'Guardar' : 'Agregar'}
+                  </Button>
+                  {editingDefectId && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingDefectId(null);
+                        setDefectForm({
+                          ticket: '',
+                          comentario: '',
+                          estado: 'Pendiente',
+                        });
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </div>
+              </Form>
+            )}
+
+            <h6>Listado de Defectos</h6>
+            {!selectedDefectModuleId || !(defectsQuery || []).length ? (
+              <div className="text-muted">
+                No hay defectos registrados para este módulo.
+              </div>
+            ) : (
+              <div className="list-group">
+                {(defectsQuery || []).map((d) => (
+                  <div
+                    key={d.id}
+                    className="list-group-item d-flex justify-content-between align-items-start"
+                  >
+                    <div>
+                      <div className="fw-bold">
+                        {d.ticket}{' '}
+                        <small className="text-muted">{d.estado}</small>
+                      </div>
+                      <div className="small">{d.comentario}</div>
+                      <div className="small text-muted mt-1">
+                        Creado por: {d.creadoPor || '-'}
+                      </div>
+                    </div>
+                    <div className="text-end">
+                      {isQAorLeader() ? (
+                        <>
+                          <Form.Select
+                            size="sm"
+                            value={d.estado}
+                            onChange={(e) =>
+                              handleChangeDefectState(d.id, e.target.value)
+                            }
+                            style={{
+                              width: '160px',
+                              display: 'inline-block',
+                              marginRight: 8,
+                            }}
+                          >
+                            {DEFECT_STATES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              variant="warning"
+                              className="me-1"
+                              onClick={() => {
+                                handleEditDefect(d);
+                              }}
+                            >
+                              <FaEdit />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => handleDeleteDefect(d.id)}
+                            >
+                              <FaTrash />
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="small text-muted">
+                          Creado por: {d.creadoPor}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseDefects}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Modal
         show={showActivityModal}
         onHide={handleCloseActivityModal}
@@ -503,6 +837,16 @@ const TrackingPage = () => {
             (() => {
               const task = moduleTasks.find((t) => t._id === selectedTaskId);
               const porcentajeActual = task?.porcentaje || 0;
+              const msPerDay = 24 * 60 * 60 * 1000;
+              const taskEndUtc =
+                task && task.fechaFinal
+                  ? (() => {
+                      const [ey, em, ed] = task.fechaFinal
+                        .split('-')
+                        .map(Number);
+                      return Date.UTC(ey, em - 1, ed) + msPerDay - 1;
+                    })()
+                  : null;
               const diferencia =
                 activityForm.porcentajeNuevo - porcentajeActual;
               const subeProgreso = diferencia > 0;
@@ -619,6 +963,10 @@ const TrackingPage = () => {
                         const cambio =
                           activity.porcentajeNuevo -
                           activity.porcentajeAnterior;
+                        const isOutOfDate =
+                          cambio !== 0 && taskEndUtc
+                            ? activity.createdAt > taskEndUtc
+                            : false;
                         const esCambioPositivo = cambio > 0;
                         const esCambioNegativo = cambio < 0;
 
@@ -642,6 +990,11 @@ const TrackingPage = () => {
                                     {cambio !== 0 &&
                                       ` (${esCambioPositivo ? '+' : ''}${cambio}%)`}
                                   </Badge>
+                                  {isOutOfDate && (
+                                    <Badge bg="danger" className="ms-2">
+                                      Fuera de fecha
+                                    </Badge>
+                                  )}
                                   <small className="text-muted">
                                     {new Date(
                                       activity.createdAt

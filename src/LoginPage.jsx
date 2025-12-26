@@ -72,10 +72,10 @@ const LoginPage = () => {
 
                 <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Correo Empresa</Form.Label>
+                    <Form.Label>Nombre del usuario</Form.Label>
                     <Form.Control
-                      type="email"
-                      placeholder="correo@empresa.com"
+                      type="text"
+                      placeholder="usuario"
                       value={correoEmpresa}
                       onChange={(e) => setCorreoEmpresa(e.target.value)}
                       disabled={isLoading}

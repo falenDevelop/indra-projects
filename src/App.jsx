@@ -61,15 +61,9 @@ function AppContent() {
   }
 
   const allMenuItems = [
-    { id: 'tracking', icon: FaChartBar, label: 'Tracking', path: '/tracking' },
     { id: 'reporte', icon: FaFileAlt, label: 'Reporte', path: '/reporte' },
+    { id: 'tracking', icon: FaChartBar, label: 'Tracking', path: '/tracking' },
     { id: 'proyecto', icon: FaHome, label: 'Proyecto', path: '/proyecto' },
-    {
-      id: 'proveedores',
-      icon: FaUsers,
-      label: 'Proveedores',
-      path: '/proveedores',
-    },
     {
       id: 'equipos',
       icon: FaUsers,
@@ -83,16 +77,22 @@ function AppContent() {
       path: '/bloques',
     },
     {
-      id: 'modulos',
-      icon: FaCog,
-      label: 'Módulos',
-      path: '/modulos',
-    },
-    {
       id: 'tipos-desarrollo',
       icon: FaCog,
       label: 'Tipos Desarrollo',
       path: '/tipos-desarrollo',
+    },
+    {
+      id: 'modulos',
+      icon: FaCog,
+      label: 'Features',
+      path: '/modulos',
+    },
+    {
+      id: 'proveedores',
+      icon: FaUsers,
+      label: 'Proveedores',
+      path: '/proveedores',
     },
   ];
 

@@ -16,6 +16,7 @@ import {
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useAuth } from './AuthContext';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 
 const initialForm = {
   nombre: '',
@@ -51,6 +52,19 @@ const ModulosPage = () => {
   const pageSize = 5;
 
   const { currentUser } = useAuth();
+
+  const formatShortDate = (d) => {
+    if (!d) return '-';
+    if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      return d.slice(2); // YY-MM-DD
+    }
+    const dt = new Date(d);
+    if (isNaN(dt)) return d;
+    const yy = String(dt.getFullYear() % 100).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  };
 
   const getPercentVariant = (v) => {
     if (v === null || v === undefined) return 'danger';
@@ -543,38 +557,37 @@ const ModulosPage = () => {
               </Col>
             </Row>
             <Row className="mb-2">
-              <Col md={4}>
+              <Col md={6}>
                 <Form.Group className="mb-2">
                   <Form.Label>
-                    Fecha Inicio <span className="text-danger">*</span>
+                    Fechas <span className="text-danger">*</span>
                   </Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={taskForm.fechaInicio}
-                    onChange={(e) =>
-                      setTaskForm((f) => ({
-                        ...f,
-                        fechaInicio: e.target.value,
-                      }))
-                    }
-                  />
+                  <div className="d-flex align-items-center gap-2">
+                    <Form.Control
+                      type="date"
+                      value={taskForm.fechaInicio}
+                      onChange={(e) =>
+                        setTaskForm((f) => ({
+                          ...f,
+                          fechaInicio: e.target.value,
+                        }))
+                      }
+                    />
+                    <span className="mx-1">/</span>
+                    <Form.Control
+                      type="date"
+                      value={taskForm.fechaFinal}
+                      onChange={(e) =>
+                        setTaskForm((f) => ({
+                          ...f,
+                          fechaFinal: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
                 </Form.Group>
               </Col>
-              <Col md={4}>
-                <Form.Group className="mb-2">
-                  <Form.Label>
-                    Fecha Final <span className="text-danger">*</span>
-                  </Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={taskForm.fechaFinal}
-                    onChange={(e) =>
-                      setTaskForm((f) => ({ ...f, fechaFinal: e.target.value }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
+              <Col md={6}>
                 <Form.Group className="mb-2">
                   <Form.Label>Porcentaje (%)</Form.Label>
                   <Form.Control
@@ -616,16 +629,15 @@ const ModulosPage = () => {
               <tr>
                 <th>Actividad</th>
                 <th>Tipo Desarrollo</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Final</th>
-                <th>Porcentaje</th>
+                <th style={{ minWidth: '200px' }}>Fechas</th>
+                <th>Avance</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {!moduleTasks || moduleTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted">
+                  <td colSpan={5} className="text-center text-muted">
                     No hay tareas asignadas a este módulo.
                   </td>
                 </tr>
@@ -646,8 +658,11 @@ const ModulosPage = () => {
                     >
                       <td>{task.nombreActividad}</td>
                       <td>{devType ? devType.nombre : '-'}</td>
-                      <td>{task.fechaInicio}</td>
-                      <td>{task.fechaFinal}</td>
+                      <td>
+                        {formatShortDate(task.fechaInicio)}{' '}
+                        <span className="mx-1">/</span>{' '}
+                        {formatShortDate(task.fechaFinal)}
+                      </td>
                       <td>
                         <span className="badge bg-info">
                           {task.porcentaje}%
@@ -661,15 +676,19 @@ const ModulosPage = () => {
                               variant="warning"
                               onClick={() => handleEditTask(task)}
                               className="me-1"
+                              title="Editar"
+                              aria-label="Editar"
                             >
-                              Editar
+                              <FaEdit />
                             </Button>
                             <Button
                               size="sm"
                               variant="danger"
                               onClick={() => handleDeleteTask(task._id)}
+                              title="Eliminar"
+                              aria-label="Eliminar"
                             >
-                              Eliminar
+                              <FaTrash />
                             </Button>
                           </>
                         )}
