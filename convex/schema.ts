@@ -38,6 +38,7 @@ export default defineSchema({
   }),
   blocks: defineTable({
     nombre: v.string(),
+    projectId: v.optional(v.id('projects')),
   }),
   block_modules: defineTable({
     blockId: v.id('blocks'),

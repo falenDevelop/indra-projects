@@ -7,6 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ReportePage = () => {
   const [selectedBlockId, setSelectedBlockId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [expandedTeams, setExpandedTeams] = useState({});
   const [selectedModule, setSelectedModule] = useState(null);
   const [selectedDevType, setSelectedDevType] = useState(null);
@@ -19,7 +20,7 @@ const ReportePage = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [showFocalModal, setShowFocalModal] = useState(false);
-  const [currentUserName, setCurrentUserName] = useState('');
+  const [currentUserName] = useState('');
 
   const getPercentVariant = (v) => {
     if (v === null || v === undefined) return 'danger';
@@ -33,6 +34,7 @@ const ReportePage = () => {
 
   // Cargar bloques
   const blocksData = useQuery(api.blocks.list);
+  const projectsData = useQuery(api.projects.list);
 
   // Cargar datos del reporte
   const reportData = useQuery(
@@ -69,11 +71,24 @@ const ReportePage = () => {
   );
 
   // Seleccionar el segundo bloque por defecto
+  // Auto-select first project and its first block when data loads
   React.useEffect(() => {
-    if (blocksData && blocksData.length >= 2 && !selectedBlockId) {
-      setSelectedBlockId(blocksData[1]._id);
+    if ((projectsData || []).length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projectsData[0]._id);
     }
-  }, [blocksData, selectedBlockId]);
+  }, [projectsData]);
+
+  React.useEffect(() => {
+    if (!blocksData) return;
+    const filtered = (blocksData || []).filter((b) =>
+      selectedProjectId ? b.projectId === selectedProjectId : true
+    );
+    if (filtered.length > 0) {
+      setSelectedBlockId((prev) => (prev ? prev : filtered[0]._id));
+    } else {
+      setSelectedBlockId(null);
+    }
+  }, [blocksData, selectedProjectId]);
 
   const toggleTeam = (teamName) => {
     setExpandedTeams((prev) => ({
@@ -197,6 +212,21 @@ const ReportePage = () => {
               proceso
             </p>
           </div>
+          <div style={{ minWidth: '500px' }}>
+            <label className="form-label fw-semibold">Seleccionar Proyecto:</label>
+            <select
+              className="form-select form-select-lg mb-2"
+              value={selectedProjectId || ''}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+            >
+              <option value="">-- Todos los proyectos --</option>
+              {(projectsData || []).map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
           <div style={{ minWidth: '300px' }}>
             <label className="form-label fw-semibold">
               Seleccionar Bloque:
@@ -207,34 +237,18 @@ const ReportePage = () => {
               onChange={(e) => setSelectedBlockId(e.target.value)}
             >
               <option value="">-- Seleccione un bloque --</option>
-              {blocksData.map((block) => (
-                <option key={block._id} value={block._id}>
-                  {block.nombre}
-                </option>
-              ))}
+              {(blocksData || [])
+                .filter((b) =>
+                  selectedProjectId ? b.projectId === selectedProjectId : true
+                )
+                .map((block) => (
+                  <option key={block._id} value={block._id}>
+                    {block.nombre}
+                  </option>
+                ))}
             </select>
           </div>
-          <div>
-            <label className="form-label fw-semibold">Usuario Focal:</label>
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Ingrese su nombre"
-                value={currentUserName}
-                onChange={(e) => setCurrentUserName(e.target.value)}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowFocalModal(true)}
-                disabled={
-                  !currentUserName || !focalModules || focalModules.length === 0
-                }
-              >
-                Mis Módulos ({focalModules?.length || 0})
-              </button>
-            </div>
-          </div>
+          
         </div>
 
         {selectedBlock && (

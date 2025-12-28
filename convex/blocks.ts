@@ -10,9 +10,12 @@ export const list = query({
 export const create = mutation({
   args: {
     nombre: v.string(),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert('blocks', args);
+    const payload: any = { nombre: args.nombre };
+    if (args.projectId !== undefined) payload.projectId = args.projectId;
+    return await ctx.db.insert('blocks', payload);
   },
 });
 
@@ -20,9 +23,13 @@ export const update = mutation({
   args: {
     id: v.id('blocks'),
     nombre: v.string(),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
-    const { id, ...data } = args;
+    const { id } = args;
+    const data: any = {};
+    if (args.nombre !== undefined) data.nombre = args.nombre;
+    if (args.projectId !== undefined) data.projectId = args.projectId;
     return await ctx.db.patch(id, data);
   },
 });

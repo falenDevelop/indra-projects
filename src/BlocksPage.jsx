@@ -12,6 +12,7 @@ import { api } from '../convex/_generated/api';
 
 const initialForm = {
   nombre: '',
+  projectId: '',
 };
 
 const BlocksPage = () => {
@@ -26,6 +27,7 @@ const BlocksPage = () => {
 
   // Convex hooks
   const blocksData = useQuery(api.blocks.list);
+  const projectsData = useQuery(api.projects.list);
   const modulesData = useQuery(api.modules.list);
   const blockModules = useQuery(
     api.block_modules.listByBlock,
@@ -40,8 +42,11 @@ const BlocksPage = () => {
 
   const handleShowModal = (block) => {
     if (block) {
-      const { _id, _creationTime, ...rest } = block;
-      setForm(rest);
+      // Ensure form fields are set explicitly to avoid undefined values
+      setForm({
+        nombre: block.nombre || '',
+        projectId: block.projectId || '',
+      });
       setEditingId(block._id);
     } else {
       setForm(initialForm);
@@ -61,11 +66,13 @@ const BlocksPage = () => {
       alert('Por favor complete el nombre del bloque');
       return;
     }
+    const payload = { nombre: form.nombre };
+    if (form.projectId) payload.projectId = form.projectId;
 
     if (editingId) {
-      await updateBlock({ ...form, id: editingId });
+      await updateBlock({ id: editingId, ...payload });
     } else {
-      await createBlock(form);
+      await createBlock(payload);
     }
     handleCloseModal();
   };
@@ -135,47 +142,54 @@ const BlocksPage = () => {
           <Table bordered hover responsive>
             <thead>
               <tr>
-                <th>Nombre del Bloque</th>
-                <th>Acciones</th>
+                  <th>Nombre del Bloque</th>
+                  <th>Proyecto</th>
+                  <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="text-center text-muted">
-                    No hay bloques registrados.
-                  </td>
-                </tr>
-              ) : (
-                paginated.map((b) => (
-                  <tr key={b._id}>
-                    <td>{b.nombre}</td>
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="warning"
-                        onClick={() => handleShowModal(b)}
-                      >
-                        Editar
-                      </Button>{' '}
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleDelete(b._id)}
-                      >
-                        Eliminar
-                      </Button>{' '}
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => handleShowAssignModal(b._id)}
-                      >
-                        Asignar Módulos
-                      </Button>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="text-center text-muted">
+                      No hay bloques registrados.
                     </td>
                   </tr>
-                ))
-              )}
+                ) : (
+                  paginated.map((b) => {
+                    const project = (projectsData || []).find(
+                      (p) => p._id === b.projectId
+                    );
+                    return (
+                      <tr key={b._id}>
+                        <td>{b.nombre}</td>
+                        <td>{project?.nombre || '-'}</td>
+                        <td>
+                          <Button
+                            size="sm"
+                            variant="warning"
+                            onClick={() => handleShowModal(b)}
+                          >
+                            Editar
+                          </Button>{' '}
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleDelete(b._id)}
+                          >
+                            Eliminar
+                          </Button>{' '}
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleShowAssignModal(b._id)}
+                          >
+                            Asignar Módulos
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
             </tbody>
           </Table>
         </>
@@ -214,6 +228,20 @@ const BlocksPage = () => {
                 }
                 required
               />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Proyecto</Form.Label>
+              <Form.Select
+                value={form.projectId || ''}
+                onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
+              >
+                <option value="">-- Sin proyecto --</option>
+                {(projectsData || []).map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
           </Form>
         </Modal.Body>

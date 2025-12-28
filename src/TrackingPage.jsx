@@ -20,6 +20,7 @@ import { useAuth } from './AuthContext';
 
 const TrackingPage = () => {
   const [selectedModuleId, setSelectedModuleId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityForm, setActivityForm] = useState({
@@ -131,11 +132,21 @@ const TrackingPage = () => {
     })();
   };
 
-  const handleChangeDefectState = (id, estado) => {
+  const handleChangeDefectState = (defectObj, estado) => {
     if (!selectedDefectModuleId) return;
     (async () => {
       try {
-        await updateDefect({ id, estado });
+        const id = defectObj?.id || defectObj?._id;
+        const payload = {
+          id,
+          estado,
+          ticket: defectObj?.ticket || '',
+        };
+        if (defectObj?.comentario) payload.comentario = defectObj.comentario;
+        if (defectObj?.usuario) payload.usuario = defectObj.usuario;
+        if (defectObj?.contrasena) payload.contrasena = defectObj.contrasena;
+
+        await updateDefect(payload);
       } catch (err) {
         console.error('Error updating defect state:', err);
         alert('Error al actualizar el estado del defecto');
@@ -145,6 +156,7 @@ const TrackingPage = () => {
 
   // Convex hooks
   const blocksData = useQuery(api.blocks.list);
+  const projectsData = useQuery(api.projects.list);
   const teamsData = useQuery(api.teams.list);
   const modulesData = useQuery(api.modules.list);
   const developmentTypesData = useQuery(api.development_types.list);
@@ -267,225 +279,255 @@ const TrackingPage = () => {
         </p>
       </div>
 
+      <div className="mb-3 d-flex gap-2 align-items-center">
+        <Form.Label className="mb-0 me-2">Proyecto</Form.Label>
+        <Form.Select
+          style={{ maxWidth: 320 }}
+          value={selectedProjectId}
+          onChange={(e) => setSelectedProjectId(e.target.value)}
+        >
+          <option value="">-- Todos los proyectos --</option>
+          {(projectsData || []).map((p) => (
+            <option key={p._id} value={p._id}>
+              {p.nombre}
+            </option>
+          ))}
+        </Form.Select>
+      </div>
+
       <Row>
         {/* Panel izquierdo - Bloques y Equipos */}
         <Col md={selectedModuleId ? 4 : 12}>
-          <Accordion defaultActiveKey="0">
-            {(blocksData || []).map((block, index) => {
-              const teams = teamsByBlock[block.nombre] || [];
-
+            {(() => {
+              const filteredBlocks = (blocksData || []).filter((b) =>
+                selectedProjectId ? b.projectId === selectedProjectId : true
+              );
+              if (filteredBlocks.length === 0) {
+                return (
+                  <div className="p-3 text-center text-muted">
+                    No hay bloques para este proyecto.
+                  </div>
+                );
+              }
               return (
-                <Accordion.Item eventKey={index.toString()} key={block._id}>
-                  <Accordion.Header>
-                    <div className="d-flex justify-content-between align-items-center w-100 pe-3">
-                      <div>
-                        <strong>{block.nombre}</strong>
-                        <Badge bg="secondary" className="ms-2">
-                          {teams.length} equipo{teams.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                    </div>
-                  </Accordion.Header>
-                  <Accordion.Body>
-                    {teams.length === 0 ? (
-                      <p className="text-muted">
-                        No hay equipos asignados a este bloque.
-                      </p>
-                    ) : (
-                      <Row>
-                        {teams.map((team) => {
-                          // Obtener miembros del equipo
-                          const teamMembers = (allTeamMembers || []).filter(
-                            (tm) => tm.teamId === team._id
-                          );
+                <Accordion defaultActiveKey="0">
+                  {filteredBlocks.map((block, index) => {
+                    const teams = teamsByBlock[block.nombre] || [];
 
-                          // Agrupar miembros por módulo
-                          const membersByModule = teamMembers.reduce(
-                            (acc, member) => {
-                              const moduleId = member.moduleId || 'sin-modulo';
-                              if (!acc[moduleId]) {
-                                acc[moduleId] = [];
-                              }
-                              acc[moduleId].push(member);
-                              return acc;
-                            },
-                            {}
-                          );
+                    return (
+                      <Accordion.Item eventKey={index.toString()} key={block._id}>
+                        <Accordion.Header>
+                          <div className="d-flex justify-content-between align-items-center w-100 pe-3">
+                            <div>
+                              <strong>{block.nombre}</strong>
+                              <Badge bg="secondary" className="ms-2">
+                                {teams.length} equipo{teams.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                          </div>
+                        </Accordion.Header>
+                        <Accordion.Body>
+                          {teams.length === 0 ? (
+                            <p className="text-muted">
+                              No hay equipos asignados a este bloque.
+                            </p>
+                          ) : (
+                            <Row>
+                              {teams.map((team) => {
+                                // Obtener miembros del equipo
+                                const teamMembers = (allTeamMembers || []).filter(
+                                  (tm) => tm.teamId === team._id
+                                );
 
-                          return (
-                            <Col
-                              md={selectedModuleId ? 12 : 4}
-                              key={team._id}
-                              className="mb-2"
-                            >
-                              <Card className="shadow-sm">
-                                <Card.Header className="bg-primary text-white py-2">
-                                  <strong>{team.nombre}</strong>
-                                  <Badge
-                                    bg="light"
-                                    text="dark"
-                                    className="ms-2"
+                                // Agrupar miembros por módulo
+                                const membersByModule = teamMembers.reduce(
+                                  (acc, member) => {
+                                    const moduleId = member.moduleId || 'sin-modulo';
+                                    if (!acc[moduleId]) {
+                                      acc[moduleId] = [];
+                                    }
+                                    acc[moduleId].push(member);
+                                    return acc;
+                                  },
+                                  {}
+                                );
+
+                                return (
+                                  <Col
+                                    md={selectedModuleId ? 12 : 4}
+                                    key={team._id}
+                                    className="mb-2"
                                   >
-                                    {teamMembers.length} miembro
-                                    {teamMembers.length !== 1 ? 's' : ''}
-                                  </Badge>
-                                </Card.Header>
-                                <Card.Body className="p-2">
-                                  {Object.keys(membersByModule).length === 0 ? (
-                                    <p className="text-muted mb-0">
-                                      No hay proveedores asignados
-                                    </p>
-                                  ) : (
-                                    Object.keys(membersByModule).map(
-                                      (moduleId) => {
-                                        const module = modulesData?.find(
-                                          (m) => m._id === moduleId
-                                        );
-                                        const members =
-                                          membersByModule[moduleId];
-                                        const isSelected =
-                                          selectedModuleId === moduleId;
+                                    <Card className="shadow-sm">
+                                      <Card.Header className="bg-primary text-white py-2">
+                                        <strong>{team.nombre}</strong>
+                                        <Badge
+                                          bg="light"
+                                          text="dark"
+                                          className="ms-2"
+                                        >
+                                          {teamMembers.length} miembro
+                                          {teamMembers.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                      </Card.Header>
+                                      <Card.Body className="p-2">
+                                        {Object.keys(membersByModule).length === 0 ? (
+                                          <p className="text-muted mb-0">
+                                            No hay proveedores asignados
+                                          </p>
+                                        ) : (
+                                          Object.keys(membersByModule).map(
+                                            (moduleId) => {
+                                              const module = modulesData?.find(
+                                                (m) => m._id === moduleId
+                                              );
+                                              const members =
+                                                membersByModule[moduleId];
+                                              const isSelected =
+                                                selectedModuleId === moduleId;
 
-                                        return (
-                                          <div
-                                            key={moduleId}
-                                            className={`mb-2 pb-2 border-bottom ${isSelected ? 'bg-light rounded p-2' : ''}`}
-                                          >
-                                            <div className="d-flex justify-content-between align-items-center mb-1">
-                                              <div>
-                                                <small className="text-primary fw-bold">
-                                                  {module
-                                                    ? module.nombre
-                                                    : 'Sin módulo asignado'}
-                                                </small>
-                                                {module && (
-                                                  <Badge
-                                                    pill
-                                                    bg={
-                                                      module.estado === 'Activo'
-                                                        ? 'success'
-                                                        : module.estado ===
-                                                            'En Desarrollo'
-                                                          ? 'primary'
-                                                          : module.estado ===
-                                                              'Pausado'
-                                                            ? 'warning'
-                                                            : 'secondary'
-                                                    }
-                                                    className="ms-2"
-                                                  >
-                                                    {module.estado}
-                                                  </Badge>
-                                                )}
-                                              </div>
-                                              {module && (
-                                                <Button
-                                                  size="sm"
-                                                  variant={
-                                                    isSelected
-                                                      ? 'info'
-                                                      : 'outline-info'
-                                                  }
-                                                  onClick={() =>
-                                                    handleShowTasks(module._id)
-                                                  }
+                                              return (
+                                                <div
+                                                  key={moduleId}
+                                                  className={`mb-2 pb-2 border-bottom ${isSelected ? 'bg-light rounded p-2' : ''}`}
                                                 >
-                                                  {isSelected
-                                                    ? 'Viendo'
-                                                    : 'Ver'}
-                                                </Button>
-                                              )}
-                                              {module && (
-                                                <div className="mt-1">
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline-danger"
-                                                    onClick={() =>
-                                                      handleShowDefects(
-                                                        module._id
-                                                      )
-                                                    }
-                                                  >
-                                                    Defectos
-                                                  </Button>
-                                                </div>
-                                              )}
-                                            </div>
-
-                                            {/* Lista de proveedores/responsables */}
-                                            <div className="ms-2">
-                                              {members.map((member) => {
-                                                const provider =
-                                                  providersData?.find(
-                                                    (p) =>
-                                                      p._id ===
-                                                      member.providerId
-                                                  );
-                                                return (
-                                                  <div
-                                                    key={member._id}
-                                                    className="d-flex align-items-center mb-1"
-                                                  >
-                                                    <div className="me-2">
-                                                      {member.isFocal && (
+                                                  <div className="d-flex justify-content-between align-items-center mb-1">
+                                                    <div>
+                                                      <small className="text-primary fw-bold">
+                                                        {module
+                                                          ? module.nombre
+                                                          : 'Sin módulo asignado'}
+                                                      </small>
+                                                      {module && (
                                                         <Badge
-                                                          bg="warning"
-                                                          text="dark"
                                                           pill
-                                                          style={{
-                                                            fontSize: '0.7rem',
-                                                          }}
+                                                          bg={
+                                                            module.estado === 'Activo'
+                                                              ? 'success'
+                                                              : module.estado ===
+                                                                  'En Desarrollo'
+                                                                ? 'primary'
+                                                                : module.estado ===
+                                                                    'Pausado'
+                                                                  ? 'warning'
+                                                                  : 'secondary'
+                                                          }
+                                                          className="ms-2"
                                                         >
-                                                          Focal
+                                                          {module.estado}
                                                         </Badge>
                                                       )}
                                                     </div>
-                                                    <div className="flex-grow-1">
-                                                      <small className="fw-bold">
-                                                        {member.nombre}
-                                                      </small>
-                                                      {provider && (
-                                                        <small
-                                                          className="text-muted d-block"
-                                                          style={{
-                                                            fontSize: '0.7rem',
-                                                          }}
+                                                    {module && (
+                                                      <Button
+                                                        size="sm"
+                                                        variant={
+                                                          isSelected
+                                                            ? 'info'
+                                                            : 'outline-info'
+                                                        }
+                                                        onClick={() =>
+                                                          handleShowTasks(module._id)
+                                                        }
+                                                      >
+                                                        {isSelected
+                                                          ? 'Viendo'
+                                                          : 'Ver'}
+                                                      </Button>
+                                                    )}
+                                                    {module && (
+                                                      <div className="mt-1">
+                                                        <Button
+                                                          size="sm"
+                                                          variant="outline-danger"
+                                                          onClick={() =>
+                                                            handleShowDefects(
+                                                              module._id
+                                                            )
+                                                          }
                                                         >
-                                                          {provider.perfil} -{' '}
-                                                          {provider.tipo}
-                                                        </small>
-                                                      )}
-                                                    </div>
-                                                    <Badge
-                                                      bg="info"
-                                                      pill
-                                                      style={{
-                                                        fontSize: '0.7rem',
-                                                      }}
-                                                    >
-                                                      {member.estado}
-                                                    </Badge>
+                                                          Defectos
+                                                        </Button>
+                                                      </div>
+                                                    )}
                                                   </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-                                    )
-                                  )}
-                                </Card.Body>
-                              </Card>
-                            </Col>
-                          );
-                        })}
-                      </Row>
-                    )}
-                  </Accordion.Body>
-                </Accordion.Item>
+
+                                                  {/* Lista de proveedores/responsables */}
+                                                  <div className="ms-2">
+                                                    {members.map((member) => {
+                                                      const provider =
+                                                        providersData?.find(
+                                                          (p) =>
+                                                            p._id ===
+                                                            member.providerId
+                                                        );
+                                                      return (
+                                                        <div
+                                                          key={member._id}
+                                                          className="d-flex align-items-center mb-1"
+                                                        >
+                                                          <div className="me-2">
+                                                            {member.isFocal && (
+                                                              <Badge
+                                                                bg="warning"
+                                                                text="dark"
+                                                                pill
+                                                                style={{
+                                                                  fontSize: '0.7rem',
+                                                                }}
+                                                              >
+                                                                Focal
+                                                              </Badge>
+                                                            )}
+                                                          </div>
+                                                          <div className="flex-grow-1">
+                                                            <small className="fw-bold">
+                                                              {member.nombre}
+                                                            </small>
+                                                            {provider && (
+                                                              <small
+                                                                className="text-muted d-block"
+                                                                style={{
+                                                                  fontSize: '0.7rem',
+                                                                }}
+                                                              >
+                                                                {provider.perfil} -{' '}
+                                                                {provider.tipo}
+                                                              </small>
+                                                            )}
+                                                          </div>
+                                                          <Badge
+                                                            bg="info"
+                                                            pill
+                                                            style={{
+                                                              fontSize: '0.7rem',
+                                                            }}
+                                                          >
+                                                            {member.estado}
+                                                          </Badge>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              );
+                                            }
+                                          )
+                                        )}
+                                      </Card.Body>
+                                    </Card>
+                                  </Col>
+                                );
+                              })}
+                            </Row>
+                          )}
+                        </Accordion.Body>
+                      </Accordion.Item>
+                    );
+                  })}
+                </Accordion>
               );
-            })}
-          </Accordion>
+            })()}
         </Col>
 
         {/* Panel derecho - Tareas del módulo seleccionado */}
@@ -762,7 +804,7 @@ const TrackingPage = () => {
                             size="sm"
                             value={d.estado}
                             onChange={(e) =>
-                              handleChangeDefectState(d.id, e.target.value)
+                              handleChangeDefectState(d, e.target.value)
                             }
                             style={{
                               width: '160px',

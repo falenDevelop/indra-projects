@@ -13,6 +13,7 @@ import { api } from '../convex/_generated/api';
 const initialForm = {
   nombre: '',
   bloque: '',
+  projectId: '',
 };
 
 const TeamsPage = () => {
@@ -32,6 +33,7 @@ const TeamsPage = () => {
   // Convex hooks
   const teamsData = useQuery(api.teams.list);
   const blocksData = useQuery(api.blocks.list);
+  const projectsData = useQuery(api.projects.list);
   const providersData = useQuery(api.providers.list);
   const modulesData = useQuery(api.modules.list);
   const blockModulesData = useQuery(
@@ -53,7 +55,9 @@ const TeamsPage = () => {
   const handleShowModal = (team) => {
     if (team) {
       const { _id, _creationTime, ...rest } = team;
-      setForm(rest);
+      // try to infer projectId from block name
+      const block = (blocksData || []).find((b) => b.nombre === team.bloque);
+      setForm({ ...rest, projectId: block?.projectId || '' });
       setEditingId(team._id);
     } else {
       setForm(initialForm);
@@ -69,8 +73,8 @@ const TeamsPage = () => {
   };
 
   const handleSave = async () => {
-    if (!form.nombre || !form.bloque) {
-      alert('Por favor complete todos los campos obligatorios');
+    if (!form.nombre || !form.bloque || !form.projectId) {
+      alert('Por favor complete todos los campos obligatorios (Proyecto y Bloque)');
       return;
     }
 
@@ -284,19 +288,35 @@ const TeamsPage = () => {
               <Form.Label>
                 Bloque <span className="text-danger">*</span>
               </Form.Label>
+              <Form.Group className="mb-2">
+                <Form.Label>Proyecto <span className="text-danger">*</span></Form.Label>
+                <Form.Select
+                  value={form.projectId}
+                  onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value, bloque: '' }))}
+                  required
+                >
+                  <option value="">Selecciona un proyecto...</option>
+                  {(projectsData || []).map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+
               <Form.Select
                 value={form.bloque}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, bloque: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, bloque: e.target.value }))}
                 required
               >
                 <option value="">Selecciona un bloque...</option>
-                {(blocksData || []).map((bloque) => (
-                  <option key={bloque._id} value={bloque.nombre}>
-                    {bloque.nombre}
-                  </option>
-                ))}
+                {(blocksData || [])
+                  .filter((b) => (form.projectId ? b.projectId === form.projectId : true))
+                  .map((bloque) => (
+                    <option key={bloque._id} value={bloque.nombre}>
+                      {bloque.nombre}
+                    </option>
+                  ))}
               </Form.Select>
             </Form.Group>
           </Form>
