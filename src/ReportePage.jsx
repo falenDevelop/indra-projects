@@ -46,6 +46,16 @@ const ReportePage = () => {
     selectedModule ? { moduleId: selectedModule } : 'skip'
   );
 
+  // Si el tipo seleccionado es 'defect' o 'defecto', cargar defects para el módulo
+  const isSelectedDevTypeDefect = selectedDevType
+    ? String(selectedDevType).toLowerCase().includes('defect') || String(selectedDevType).toLowerCase().includes('defecto')
+    : false;
+
+  const defectsForModule = useQuery(
+    api.defects.listByModule,
+    selectedModule && isSelectedDevTypeDefect ? { moduleId: selectedModule } : 'skip'
+  );
+
   // Cargar módulos donde el usuario es focal
   const focalModules = useQuery(
     api.reports.getFocalModules,
@@ -100,6 +110,19 @@ const ReportePage = () => {
     if (value >= 75) return 'primary';
     if (value >= 50) return 'warning';
     return 'danger';
+  };
+
+  const getDefectBadgeVariant = (estado) => {
+    if (!estado) return 'secondary';
+    const s = String(estado).toLowerCase();
+    if (s === 'resuelto') return 'success';
+    if (s === 'descartado') return 'secondary';
+    if (s === 'bloqueante') return 'danger';
+    if (s === 'observado') return 'warning';
+    if (s === 'validar qa' || s === 'validar QA'.toLowerCase()) return 'info';
+    if (s === 'procesos' || s === 'validacion banco') return 'primary';
+    if (s === 'pendiente') return 'secondary';
+    return 'dark';
   };
 
   const isYesterday = (timestamp) => {
@@ -445,7 +468,40 @@ const ReportePage = () => {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {moduleActivities ? (
+          {isSelectedDevTypeDefect ? (
+            <div>
+              <h5 className="mb-3">Defectos</h5>
+              {(!defectsForModule || defectsForModule.length === 0) ? (
+                <div className="text-muted">No hay defectos registrados para este módulo.</div>
+              ) : (
+                <div className="list-group">
+                  {[...defectsForModule]
+                    .sort((a, b) => {
+                      const completed = ['resuelto', 'descartado'];
+                      const aDone = completed.includes((a.estado || '').toLowerCase()) ? 1 : 0;
+                      const bDone = completed.includes((b.estado || '').toLowerCase()) ? 1 : 0;
+                      if (aDone !== bDone) return aDone - bDone; // no completados antes
+                      return (b.creadoAt || 0) - (a.creadoAt || 0);
+                    })
+                    .map((d) => (
+                      <div key={d.id} className="list-group-item d-flex justify-content-between align-items-start">
+                        <div>
+                          <div className="fw-bold d-flex align-items-center gap-2">
+                            <span className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}>{d.estado}</span>
+                            <span>{d.ticket}</span>
+                          </div>
+                          <div className="small">{d.comentario}</div>
+                          <div className="small text-muted mt-1">Creado por: {d.creadoPor || '-'}</div>
+                        </div>
+                        <div className="text-end">
+                          <small className="text-muted">{d.creadoAt ? new Date(d.creadoAt).toLocaleString('es-PE') : ''}</small>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          ) : moduleActivities ? (
             <div>
               <h5 className="mb-3">{moduleActivities.module?.nombre}</h5>
               <p className="text-muted">

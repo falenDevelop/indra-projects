@@ -54,6 +54,7 @@ const TrackingPage = () => {
     'Observado',
     'Bloqueante',
     'Resuelto',
+    'Descartado',
     'Otro',
   ];
 

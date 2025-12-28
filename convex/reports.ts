@@ -36,13 +36,19 @@ export const getReportData = query({
           (tm) => tm.teamId === team._id
         );
 
-        // Obtener módulos del equipo (que también estén en el bloque seleccionado)
+        // Obtener módulos del equipo (únicos) que también estén en el bloque seleccionado
+        const moduleIdSet = Array.from(
+          new Set(
+            teamMembers
+              .filter((tm) => tm.moduleId && moduleIds.includes(tm.moduleId))
+              .map((tm) => tm.moduleId)
+          )
+        );
+
         const teamModules = await Promise.all(
-          teamMembers
-            .filter((tm) => tm.moduleId && moduleIds.includes(tm.moduleId))
-            .map(async (tm) => {
-              const module = tm.moduleId ? await ctx.db.get(tm.moduleId) : null;
-              if (!module) return null;
+          moduleIdSet.map(async (moduleId) => {
+            const module = moduleId ? await ctx.db.get(moduleId) : null;
+            if (!module) return null;
 
               // Obtener las tareas del módulo
               const tasks = await ctx.db
@@ -80,6 +86,39 @@ export const getReportData = query({
                   percentages.length > 0 ? sum / percentages.length : 0;
               }
 
+              // Manejo especial para tipo "defectos": calcular a partir de la tabla defects
+              // Estados de defectos considerados como "completados"
+              const COMPLETED_DEFECT_STATES = new Set(['resuelto', 'descartado']);
+
+              // Asegurar que los tipos de desarrollo que representen defectos
+              // estén presentes en averagesByType incluso si no hay tareas.
+              for (const devType of developmentTypes) {
+                try {
+                  const typeName = devType?.nombre || '';
+                  const tn = String(typeName).toLowerCase();
+                  if (tn.includes('defect') || tn.includes('defecto')) {  
+                    // Obtener defects para este módulo
+                    const moduleDefects = await ctx.db
+                      .query('defects')
+                      .filter((q) => q.eq(q.field('moduleId'), module._id))
+                      .collect();
+
+                    const totalDefects = moduleDefects.length;
+                    if (totalDefects === 0) {
+                      averagesByType[typeName] = 100;
+                    } else {
+                      const completed = moduleDefects.filter((d) => {
+                        const s = String(d.estado || '').trim().toLowerCase();
+                        return COMPLETED_DEFECT_STATES.has(s);
+                      }).length;
+                      averagesByType[typeName] = (completed / totalDefects) * 100;
+                    }
+                  }
+                } catch (e) {
+                  // en caso de error, dejar el valor calculado por tareas (o ausente)
+                }
+              }
+
               // Calcular porcentaje total
               const totalPercentage =
                 Object.values(averagesByType).reduce((a, b) => a + b, 0) /
@@ -90,10 +129,18 @@ export const getReportData = query({
                 (tm) => tm.moduleId === module._id && tm.isFocal
               );
 
-              // Obtener todos los responsables del módulo
+              // Obtener todos los responsables del módulo (evitar duplicados por team_member id)
+              const seenMemberIds = new Set();
               const moduleResponsables = teamMembers
                 .filter((tm) => tm.moduleId === module._id)
+                .filter((tm) => {
+                  if (seenMemberIds.has(String(tm._id))) return false;
+                  seenMemberIds.add(String(tm._id));
+                  return true;
+                })
                 .map((tm) => ({
+                  _id: tm._id,
+                  providerId: tm.providerId,
                   nombre: tm.nombre,
                   isFocal: tm.isFocal,
                 }));
@@ -112,14 +159,17 @@ export const getReportData = query({
 
               const allActivities = recentActivities.flat();
 
-              // Contar actividades de ayer
-              const yesterday = new Date();
-              yesterday.setDate(yesterday.getDate() - 1);
-              yesterday.setHours(0, 0, 0, 0);
-              const yesterdayTimestamp = yesterday.getTime();
+              // Contar actividades de ayer (usar límites UTC para evitar
+              // discrepancias por zona horaria entre cliente/servidor)
+              const now = new Date();
+              const uy = now.getUTCFullYear();
+              const um = now.getUTCMonth();
+              const ud = now.getUTCDate();
+              const yesterdayStartUtc = Date.UTC(uy, um, ud - 1); // 00:00:00.000 UTC de ayer
+              const yesterdayEndUtc = Date.UTC(uy, um, ud) - 1; // 23:59:59.999 UTC de ayer
 
               const actividadesAyer = allActivities.filter(
-                (act) => act.createdAt >= yesterdayTimestamp
+                (act) => act.createdAt >= yesterdayStartUtc && act.createdAt <= yesterdayEndUtc
               ).length;
 
               return {

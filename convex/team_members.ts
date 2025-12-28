@@ -29,19 +29,25 @@ export const create = mutation({
     isFocal: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // Verificar si ya existe esta relación
+    // Permitir varios proveedores por equipo, pero solo uno por equipo-módulo-proveedor
     const existing = await ctx.db
       .query('team_members')
       .filter((q) =>
         q.and(
           q.eq(q.field('teamId'), args.teamId),
-          q.eq(q.field('providerId'), args.providerId)
+          q.eq(q.field('providerId'), args.providerId),
+          args.moduleId
+            ? q.eq(q.field('moduleId'), args.moduleId)
+            : q.or(
+                q.eq(q.field('moduleId'), null),
+                q.not(q.field('moduleId'))
+              )
         )
       )
       .first();
 
     if (existing) {
-      throw new Error('Este proveedor ya está asignado a este equipo');
+      throw new Error('Este proveedor ya está asignado a este equipo y módulo');
     }
 
     return await ctx.db.insert('team_members', args);
