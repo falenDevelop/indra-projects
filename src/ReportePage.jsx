@@ -76,7 +76,7 @@ const ReportePage = () => {
     if ((projectsData || []).length > 0 && !selectedProjectId) {
       setSelectedProjectId(projectsData[0]._id);
     }
-  }, [projectsData]);
+  }, [projectsData, selectedProjectId]);
 
   React.useEffect(() => {
     if (!blocksData) return;

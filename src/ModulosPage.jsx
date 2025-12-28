@@ -642,7 +642,28 @@ const ModulosPage = () => {
                   </td>
                 </tr>
               ) : (
-                moduleTasks.map((task) => {
+                [...moduleTasks]
+                  .slice()
+                  .sort((a, b) => {
+                    const parseDate = (f) => {
+                      if (!f) return Infinity;
+                      try {
+                        const [y, m, d] = f.split('-').map(Number);
+                        return Date.UTC(y, m - 1, d);
+                      } catch  {
+                        return Infinity;
+                      }
+                    };
+
+                    const da = parseDate(a.fechaFinal);
+                    const db = parseDate(b.fechaFinal);
+                    if (da !== db) return da - db; // fechas más próximas primero
+
+                    const pa = typeof a.porcentaje === 'number' ? a.porcentaje : 100;
+                    const pb = typeof b.porcentaje === 'number' ? b.porcentaje : 100;
+                    return pa - pb; // porcentajes más cerca a 0 primero
+                  })
+                  .map((task) => {
                   const devType = developmentTypesData?.find(
                     (dt) => dt._id === task.developmentTypeId
                   );
@@ -654,7 +675,7 @@ const ModulosPage = () => {
                         isEditing ? 'table-warning' : 'hover-highlight'
                       }
                       style={{ cursor: 'pointer' }}
-                      onClick={() => handleOpenActivityModal(task._id, event)}
+                      onClick={(e) => handleOpenActivityModal(task._id, e)}
                     >
                       <td>{task.nombreActividad}</td>
                       <td>{devType ? devType.nombre : '-'}</td>

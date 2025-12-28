@@ -245,7 +245,7 @@ const TrackingPage = () => {
         if (dow !== 0 && dow !== 6) count += 1; // exclude Sundays(0) and Saturdays(6)
       }
       return count; // may be 0 if no weekdays in range
-    } catch {
+    } catch  {
       return undefined;
     }
   };
