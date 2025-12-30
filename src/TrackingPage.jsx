@@ -124,7 +124,7 @@ const TrackingPage = () => {
     if (!window.confirm('¿Eliminar este defecto?')) return;
     (async () => {
       try {
-        await removeDefect(id);
+        await removeDefect({ id });
       } catch (err) {
         console.error('Error removing defect:', err);
         alert('Error al eliminar el defecto');
@@ -245,7 +245,7 @@ const TrackingPage = () => {
         if (dow !== 0 && dow !== 6) count += 1; // exclude Sundays(0) and Saturdays(6)
       }
       return count; // may be 0 if no weekdays in range
-    } catch  {
+    } catch {
       return undefined;
     }
   };
@@ -298,236 +298,244 @@ const TrackingPage = () => {
       <Row>
         {/* Panel izquierdo - Bloques y Equipos */}
         <Col md={selectedModuleId ? 4 : 12}>
-            {(() => {
-              const filteredBlocks = (blocksData || []).filter((b) =>
-                selectedProjectId ? b.projectId === selectedProjectId : true
-              );
-              if (filteredBlocks.length === 0) {
-                return (
-                  <div className="p-3 text-center text-muted">
-                    No hay bloques para este proyecto.
-                  </div>
-                );
-              }
+          {(() => {
+            const filteredBlocks = (blocksData || []).filter((b) =>
+              selectedProjectId ? b.projectId === selectedProjectId : true
+            );
+            if (filteredBlocks.length === 0) {
               return (
-                <Accordion defaultActiveKey="0">
-                  {filteredBlocks.map((block, index) => {
-                    const teams = teamsByBlock[block.nombre] || [];
+                <div className="p-3 text-center text-muted">
+                  No hay bloques para este proyecto.
+                </div>
+              );
+            }
+            return (
+              <Accordion defaultActiveKey="0">
+                {filteredBlocks.map((block, index) => {
+                  const teams = teamsByBlock[block.nombre] || [];
 
-                    return (
-                      <Accordion.Item eventKey={index.toString()} key={block._id}>
-                        <Accordion.Header>
-                          <div className="d-flex justify-content-between align-items-center w-100 pe-3">
-                            <div>
-                              <strong>{block.nombre}</strong>
-                              <Badge bg="secondary" className="ms-2">
-                                {teams.length} equipo{teams.length !== 1 ? 's' : ''}
-                              </Badge>
-                            </div>
+                  return (
+                    <Accordion.Item eventKey={index.toString()} key={block._id}>
+                      <Accordion.Header>
+                        <div className="d-flex justify-content-between align-items-center w-100 pe-3">
+                          <div>
+                            <strong>{block.nombre}</strong>
+                            <Badge bg="secondary" className="ms-2">
+                              {teams.length} equipo
+                              {teams.length !== 1 ? 's' : ''}
+                            </Badge>
                           </div>
-                        </Accordion.Header>
-                        <Accordion.Body>
-                          {teams.length === 0 ? (
-                            <p className="text-muted">
-                              No hay equipos asignados a este bloque.
-                            </p>
-                          ) : (
-                            <Row>
-                              {teams.map((team) => {
-                                // Obtener miembros del equipo
-                                const teamMembers = (allTeamMembers || []).filter(
-                                  (tm) => tm.teamId === team._id
-                                );
+                        </div>
+                      </Accordion.Header>
+                      <Accordion.Body>
+                        {teams.length === 0 ? (
+                          <p className="text-muted">
+                            No hay equipos asignados a este bloque.
+                          </p>
+                        ) : (
+                          <Row>
+                            {teams.map((team) => {
+                              // Obtener miembros del equipo
+                              const teamMembers = (allTeamMembers || []).filter(
+                                (tm) => tm.teamId === team._id
+                              );
 
-                                // Agrupar miembros por módulo
-                                const membersByModule = teamMembers.reduce(
-                                  (acc, member) => {
-                                    const moduleId = member.moduleId || 'sin-modulo';
-                                    if (!acc[moduleId]) {
-                                      acc[moduleId] = [];
-                                    }
-                                    acc[moduleId].push(member);
-                                    return acc;
-                                  },
-                                  {}
-                                );
+                              // Agrupar miembros por módulo
+                              const membersByModule = teamMembers.reduce(
+                                (acc, member) => {
+                                  const moduleId =
+                                    member.moduleId || 'sin-modulo';
+                                  if (!acc[moduleId]) {
+                                    acc[moduleId] = [];
+                                  }
+                                  acc[moduleId].push(member);
+                                  return acc;
+                                },
+                                {}
+                              );
 
-                                return (
-                                  <Col
-                                    md={selectedModuleId ? 12 : 4}
-                                    key={team._id}
-                                    className="mb-2"
-                                  >
-                                    <Card className="shadow-sm">
-                                      <Card.Header className="bg-primary text-white py-2">
-                                        <strong>{team.nombre}</strong>
-                                        <Badge
-                                          bg="light"
-                                          text="dark"
-                                          className="ms-2"
-                                        >
-                                          {teamMembers.length} miembro
-                                          {teamMembers.length !== 1 ? 's' : ''}
-                                        </Badge>
-                                      </Card.Header>
-                                      <Card.Body className="p-2">
-                                        {Object.keys(membersByModule).length === 0 ? (
-                                          <p className="text-muted mb-0">
-                                            No hay proveedores asignados
-                                          </p>
-                                        ) : (
-                                          Object.keys(membersByModule).map(
-                                            (moduleId) => {
-                                              const module = modulesData?.find(
-                                                (m) => m._id === moduleId
-                                              );
-                                              const members =
-                                                membersByModule[moduleId];
-                                              const isSelected =
-                                                selectedModuleId === moduleId;
+                              return (
+                                <Col
+                                  md={selectedModuleId ? 12 : 4}
+                                  key={team._id}
+                                  className="mb-2"
+                                >
+                                  <Card className="shadow-sm">
+                                    <Card.Header className="bg-primary text-white py-2">
+                                      <strong>{team.nombre}</strong>
+                                      <Badge
+                                        bg="light"
+                                        text="dark"
+                                        className="ms-2"
+                                      >
+                                        {teamMembers.length} miembro
+                                        {teamMembers.length !== 1 ? 's' : ''}
+                                      </Badge>
+                                    </Card.Header>
+                                    <Card.Body className="p-2">
+                                      {Object.keys(membersByModule).length ===
+                                      0 ? (
+                                        <p className="text-muted mb-0">
+                                          No hay proveedores asignados
+                                        </p>
+                                      ) : (
+                                        Object.keys(membersByModule).map(
+                                          (moduleId) => {
+                                            const module = modulesData?.find(
+                                              (m) => m._id === moduleId
+                                            );
+                                            const members =
+                                              membersByModule[moduleId];
+                                            const isSelected =
+                                              selectedModuleId === moduleId;
 
-                                              return (
-                                                <div
-                                                  key={moduleId}
-                                                  className={`mb-2 pb-2 border-bottom ${isSelected ? 'bg-light rounded p-2' : ''}`}
-                                                >
-                                                  <div className="d-flex justify-content-between align-items-center mb-1">
-                                                    <div>
-                                                      <small className="text-primary fw-bold">
-                                                        {module
-                                                          ? module.nombre
-                                                          : 'Sin módulo asignado'}
-                                                      </small>
-                                                      {module && (
-                                                        <Badge
-                                                          pill
-                                                          bg={
-                                                            module.estado === 'Activo'
-                                                              ? 'success'
-                                                              : module.estado ===
-                                                                  'En Desarrollo'
-                                                                ? 'primary'
-                                                                : module.estado ===
-                                                                    'Pausado'
-                                                                  ? 'warning'
-                                                                  : 'secondary'
-                                                          }
-                                                          className="ms-2"
-                                                        >
-                                                          {module.estado}
-                                                        </Badge>
-                                                      )}
-                                                    </div>
+                                            return (
+                                              <div
+                                                key={moduleId}
+                                                className={`mb-2 pb-2 border-bottom ${isSelected ? 'bg-light rounded p-2' : ''}`}
+                                              >
+                                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                                  <div>
+                                                    <small className="text-primary fw-bold">
+                                                      {module
+                                                        ? module.nombre
+                                                        : 'Sin módulo asignado'}
+                                                    </small>
                                                     {module && (
+                                                      <Badge
+                                                        pill
+                                                        bg={
+                                                          module.estado ===
+                                                          'Activo'
+                                                            ? 'success'
+                                                            : module.estado ===
+                                                                'En Desarrollo'
+                                                              ? 'primary'
+                                                              : module.estado ===
+                                                                  'Pausado'
+                                                                ? 'warning'
+                                                                : 'secondary'
+                                                        }
+                                                        className="ms-2"
+                                                      >
+                                                        {module.estado}
+                                                      </Badge>
+                                                    )}
+                                                  </div>
+                                                  {module && (
+                                                    <Button
+                                                      size="sm"
+                                                      variant={
+                                                        isSelected
+                                                          ? 'info'
+                                                          : 'outline-info'
+                                                      }
+                                                      onClick={() =>
+                                                        handleShowTasks(
+                                                          module._id
+                                                        )
+                                                      }
+                                                    >
+                                                      {isSelected
+                                                        ? 'Viendo'
+                                                        : 'Ver'}
+                                                    </Button>
+                                                  )}
+                                                  {module && (
+                                                    <div className="mt-1">
                                                       <Button
                                                         size="sm"
-                                                        variant={
-                                                          isSelected
-                                                            ? 'info'
-                                                            : 'outline-info'
-                                                        }
+                                                        variant="outline-danger"
                                                         onClick={() =>
-                                                          handleShowTasks(module._id)
+                                                          handleShowDefects(
+                                                            module._id
+                                                          )
                                                         }
                                                       >
-                                                        {isSelected
-                                                          ? 'Viendo'
-                                                          : 'Ver'}
+                                                        Defectos
                                                       </Button>
-                                                    )}
-                                                    {module && (
-                                                      <div className="mt-1">
-                                                        <Button
-                                                          size="sm"
-                                                          variant="outline-danger"
-                                                          onClick={() =>
-                                                            handleShowDefects(
-                                                              module._id
-                                                            )
-                                                          }
-                                                        >
-                                                          Defectos
-                                                        </Button>
-                                                      </div>
-                                                    )}
-                                                  </div>
-
-                                                  {/* Lista de proveedores/responsables */}
-                                                  <div className="ms-2">
-                                                    {members.map((member) => {
-                                                      const provider =
-                                                        providersData?.find(
-                                                          (p) =>
-                                                            p._id ===
-                                                            member.providerId
-                                                        );
-                                                      return (
-                                                        <div
-                                                          key={member._id}
-                                                          className="d-flex align-items-center mb-1"
-                                                        >
-                                                          <div className="me-2">
-                                                            {member.isFocal && (
-                                                              <Badge
-                                                                bg="warning"
-                                                                text="dark"
-                                                                pill
-                                                                style={{
-                                                                  fontSize: '0.7rem',
-                                                                }}
-                                                              >
-                                                                Focal
-                                                              </Badge>
-                                                            )}
-                                                          </div>
-                                                          <div className="flex-grow-1">
-                                                            <small className="fw-bold">
-                                                              {member.nombre}
-                                                            </small>
-                                                            {provider && (
-                                                              <small
-                                                                className="text-muted d-block"
-                                                                style={{
-                                                                  fontSize: '0.7rem',
-                                                                }}
-                                                              >
-                                                                {provider.perfil} -{' '}
-                                                                {provider.tipo}
-                                                              </small>
-                                                            )}
-                                                          </div>
-                                                          <Badge
-                                                            bg="info"
-                                                            pill
-                                                            style={{
-                                                              fontSize: '0.7rem',
-                                                            }}
-                                                          >
-                                                            {member.estado}
-                                                          </Badge>
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
+                                                    </div>
+                                                  )}
                                                 </div>
-                                              );
-                                            }
-                                          )
-                                        )}
-                                      </Card.Body>
-                                    </Card>
-                                  </Col>
-                                );
-                              })}
-                            </Row>
-                          )}
-                        </Accordion.Body>
-                      </Accordion.Item>
-                    );
-                  })}
-                </Accordion>
-              );
-            })()}
+
+                                                {/* Lista de proveedores/responsables */}
+                                                <div className="ms-2">
+                                                  {members.map((member) => {
+                                                    const provider =
+                                                      providersData?.find(
+                                                        (p) =>
+                                                          p._id ===
+                                                          member.providerId
+                                                      );
+                                                    return (
+                                                      <div
+                                                        key={member._id}
+                                                        className="d-flex align-items-center mb-1"
+                                                      >
+                                                        <div className="me-2">
+                                                          {member.isFocal && (
+                                                            <Badge
+                                                              bg="warning"
+                                                              text="dark"
+                                                              pill
+                                                              style={{
+                                                                fontSize:
+                                                                  '0.7rem',
+                                                              }}
+                                                            >
+                                                              Focal
+                                                            </Badge>
+                                                          )}
+                                                        </div>
+                                                        <div className="flex-grow-1">
+                                                          <small className="fw-bold">
+                                                            {member.nombre}
+                                                          </small>
+                                                          {provider && (
+                                                            <small
+                                                              className="text-muted d-block"
+                                                              style={{
+                                                                fontSize:
+                                                                  '0.7rem',
+                                                              }}
+                                                            >
+                                                              {provider.perfil}{' '}
+                                                              - {provider.tipo}
+                                                            </small>
+                                                          )}
+                                                        </div>
+                                                        <Badge
+                                                          bg="info"
+                                                          pill
+                                                          style={{
+                                                            fontSize: '0.7rem',
+                                                          }}
+                                                        >
+                                                          {member.estado}
+                                                        </Badge>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+                                        )
+                                      )}
+                                    </Card.Body>
+                                  </Card>
+                                </Col>
+                              );
+                            })}
+                          </Row>
+                        )}
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  );
+                })}
+              </Accordion>
+            );
+          })()}
         </Col>
 
         {/* Panel derecho - Tareas del módulo seleccionado */}
@@ -798,8 +806,6 @@ const TrackingPage = () => {
                       </div>
                     </div>
                     <div className="text-end">
-                      {isQAorLeader() ? (
-                        <>
                           <Form.Select
                             size="sm"
                             value={d.estado}
@@ -824,7 +830,7 @@ const TrackingPage = () => {
                               variant="warning"
                               className="me-1"
                               onClick={() => {
-                                handleEditDefect(d);
+                                handleEditDefect({ ...d, id: d.id || d._id });
                               }}
                             >
                               <FaEdit />
@@ -832,17 +838,12 @@ const TrackingPage = () => {
                             <Button
                               size="sm"
                               variant="danger"
-                              onClick={() => handleDeleteDefect(d.id)}
+                              onClick={() => handleDeleteDefect(d.id || d._id)}
                             >
                               <FaTrash />
                             </Button>
                           </div>
-                        </>
-                      ) : (
-                        <div className="small text-muted">
-                          Creado por: {d.creadoPor}
-                        </div>
-                      )}
+                    
                     </div>
                   </div>
                 ))}

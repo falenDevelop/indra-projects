@@ -50,12 +50,15 @@ const ReportePage = () => {
 
   // Si el tipo seleccionado es 'defect' o 'defecto', cargar defects para el módulo
   const isSelectedDevTypeDefect = selectedDevType
-    ? String(selectedDevType).toLowerCase().includes('defect') || String(selectedDevType).toLowerCase().includes('defecto')
+    ? String(selectedDevType).toLowerCase().includes('defect') ||
+      String(selectedDevType).toLowerCase().includes('defecto')
     : false;
 
   const defectsForModule = useQuery(
     api.defects.listByModule,
-    selectedModule && isSelectedDevTypeDefect ? { moduleId: selectedModule } : 'skip'
+    selectedModule && isSelectedDevTypeDefect
+      ? { moduleId: selectedModule }
+      : 'skip'
   );
 
   // Cargar módulos donde el usuario es focal
@@ -213,7 +216,9 @@ const ReportePage = () => {
             </p>
           </div>
           <div style={{ minWidth: '500px' }}>
-            <label className="form-label fw-semibold">Seleccionar Proyecto:</label>
+            <label className="form-label fw-semibold">
+              Seleccionar Proyecto:
+            </label>
             <select
               className="form-select form-select-lg mb-2"
               value={selectedProjectId || ''}
@@ -248,7 +253,6 @@ const ReportePage = () => {
                 ))}
             </select>
           </div>
-          
         </div>
 
         {selectedBlock && (
@@ -281,6 +285,12 @@ const ReportePage = () => {
                     style={{ minWidth: '180px' }}
                   >
                     Responsable
+                  </th>
+                  <th
+                    className="px-3 py-3 text-start fw-semibold"
+                    style={{ minWidth: '120px' }}
+                  >
+                    Fecha Final
                   </th>
                   <th className="px-3 py-3 text-start fw-semibold">Estado</th>
                   {developmentTypes.map((type) => (
@@ -377,6 +387,52 @@ const ReportePage = () => {
                                 </span>
                               ))}
                             </div>
+                          </td>
+                          <td className="px-3 py-3 text-center align-middle">
+                            {(() => {
+                              if (!module.tasks || module.tasks.length === 0) {
+                                return (
+                                  <span className="text-muted">Sin tareas</span>
+                                );
+                              }
+                              // Filtrar solo tareas con fechaFinal válida y no vacía
+                              console.log(
+                                'Module Tasks:',
+                                module.tasks?.fechaFinal
+                              );
+                              const fechas = module.tasks
+                                .map((t) => t.fechaFinal)
+                                .filter(
+                                  (f) =>
+                                    f &&
+                                    String(f).trim() !== '' &&
+                                    f !== 'null' &&
+                                    f !== 'undefined' &&
+                                    !isNaN(new Date(f).getTime())
+                                );
+                              if (fechas.length === 0) {
+                                return (
+                                  <span className="text-muted">Sin tareas</span>
+                                );
+                              }
+                              // Obtener la mayor fecha como Date
+                              const maxFecha = fechas.reduce((a, b) =>
+                                new Date(a) > new Date(b) ? a : b
+                              );
+                              // Mostrar en formato local amigable
+                              return (
+                                <span>
+                                  {new Date(maxFecha).toLocaleDateString(
+                                    'es-PE',
+                                    {
+                                      year: 'numeric',
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                    }
+                                  )}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="px-3 py-3">
                             <span className="badge bg-info text-dark">
@@ -485,30 +541,59 @@ const ReportePage = () => {
           {isSelectedDevTypeDefect ? (
             <div>
               <h5 className="mb-3">Defectos</h5>
-              {(!defectsForModule || defectsForModule.length === 0) ? (
-                <div className="text-muted">No hay defectos registrados para este módulo.</div>
+              {!defectsForModule || defectsForModule.length === 0 ? (
+                <div className="text-muted">
+                  No hay defectos registrados para este módulo.
+                </div>
               ) : (
                 <div className="list-group">
                   {[...defectsForModule]
                     .sort((a, b) => {
                       const completed = ['resuelto', 'descartado'];
-                      const aDone = completed.includes((a.estado || '').toLowerCase()) ? 1 : 0;
-                      const bDone = completed.includes((b.estado || '').toLowerCase()) ? 1 : 0;
+                      const aDone = completed.includes(
+                        (a.estado || '').toLowerCase()
+                      )
+                        ? 1
+                        : 0;
+                      const bDone = completed.includes(
+                        (b.estado || '').toLowerCase()
+                      )
+                        ? 1
+                        : 0;
                       if (aDone !== bDone) return aDone - bDone; // no completados antes
                       return (b.creadoAt || 0) - (a.creadoAt || 0);
                     })
                     .map((d) => (
-                      <div key={d.id} className="list-group-item d-flex justify-content-between align-items-start">
+                      <div
+                        key={d.id}
+                        className="list-group-item d-flex justify-content-between align-items-start"
+                      >
                         <div>
                           <div className="fw-bold d-flex align-items-center gap-2">
-                            <span className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}>{d.estado}</span>
-                            <span>{d.ticket}</span>
+                            <span
+                              className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
+                            >
+                              {d.estado}
+                            </span>
+                            <a
+                              href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {d.ticket}
+                            </a>
                           </div>
                           <div className="small">{d.comentario}</div>
-                          <div className="small text-muted mt-1">Creado por: {d.creadoPor || '-'}</div>
+                          <div className="small text-muted mt-1">
+                            Creado por: {d.creadoPor || '-'}
+                          </div>
                         </div>
                         <div className="text-end">
-                          <small className="text-muted">{d.creadoAt ? new Date(d.creadoAt).toLocaleString('es-PE') : ''}</small>
+                          <small className="text-muted">
+                            {d.creadoAt
+                              ? new Date(d.creadoAt).toLocaleString('es-PE')
+                              : ''}
+                          </small>
                         </div>
                       </div>
                     ))}
