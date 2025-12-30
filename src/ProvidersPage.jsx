@@ -242,6 +242,7 @@ const ProvidersPage = () => {
                   <option value="Senior">Senior</option>
                   <option value="Lider Tecnico">Lider Tecnico</option>
                   <option value="QA">QA</option>
+                  <option value="QA">QA</option>
                 </Form.Select>
               </Col>
               <Col>
@@ -498,6 +499,7 @@ const ProvidersPage = () => {
                     <option value="Semi Senior">Semi Senior</option>
                     <option value="Senior">Senior</option>
                     <option value="Lider Tecnico">Lider Tecnico</option>
+                    <option value="QA">QA</option>
                   </Form.Select>
                 </Form.Group>
               </Col>

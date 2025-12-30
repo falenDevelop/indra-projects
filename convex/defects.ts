@@ -24,6 +24,7 @@ export const create = mutation({
   args: {
     moduleId: v.id('modules'),
     ticket: v.string(),
+    data: v.optional(v.string()),
     comentario: v.optional(v.string()),
     estado: v.string(),
     usuario: v.optional(v.string()),
@@ -41,6 +42,7 @@ export const update = mutation({
   args: {
     id: v.id('defects'),
     ticket: v.string(),
+    data: v.optional(v.string()),
     comentario: v.optional(v.string()),
     estado: v.string(),
     usuario: v.optional(v.string()),

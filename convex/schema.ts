@@ -76,6 +76,7 @@ export default defineSchema({
   defects: defineTable({
     moduleId: v.id('modules'),
     ticket: v.string(),
+    data: v.optional(v.string()),
     comentario: v.optional(v.string()),
     estado: v.string(),
     usuario: v.optional(v.string()),

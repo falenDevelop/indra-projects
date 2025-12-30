@@ -33,6 +33,7 @@ const TrackingPage = () => {
   const [selectedDefectModuleId, setSelectedDefectModuleId] = useState(null);
   const [defectForm, setDefectForm] = useState({
     ticket: '',
+    data: '',
     comentario: '',
     estado: 'Pendiente',
   });
@@ -69,6 +70,7 @@ const TrackingPage = () => {
     setEditingDefectId(null);
     setDefectForm({
       ticket: '',
+      data: '',
       comentario: '',
       estado: 'Pendiente',
     });
@@ -103,6 +105,7 @@ const TrackingPage = () => {
         setEditingDefectId(null);
         setDefectForm({
           ticket: '',
+          data: '',
           comentario: '',
           estado: 'Pendiente',
         });
@@ -114,6 +117,7 @@ const TrackingPage = () => {
     setEditingDefectId(defect.id);
     setDefectForm({
       ticket: defect.ticket,
+      data: defect.data ?? defect['data'] ?? '',
       comentario: defect.comentario,
       estado: defect.estado,
     });
@@ -747,6 +751,19 @@ const TrackingPage = () => {
                   </Col>
                 </Row>
                 <Form.Group className="mb-2">
+                  <Form.Label>Data</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={defectForm.data}
+                    onChange={(e) =>
+                      setDefectForm((f) => ({
+                        ...f,
+                        data: e.target.value,
+                      }))
+                    }
+                  />
+                </Form.Group>
+                <Form.Group className="mb-2">
                   <Form.Label>Comentario</Form.Label>
                   <Form.Control
                     as="textarea"
@@ -800,6 +817,9 @@ const TrackingPage = () => {
                         {d.ticket}{' '}
                         <small className="text-muted">{d.estado}</small>
                       </div>
+                      {d.data && (
+                        <div className="small text-primary">Data: {d.data}</div>
+                      )}
                       <div className="small">{d.comentario}</div>
                       <div className="small text-muted mt-1">
                         Creado por: {d.creadoPor || '-'}
