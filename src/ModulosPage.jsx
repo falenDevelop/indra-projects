@@ -55,6 +55,40 @@ const ModulosPage = () => {
   const isLiderTecnico = currentUser?.perfil === 'Lider Tecnico';
   const isFocal = currentUser?.isFocal === true && !isLiderTecnico;
 
+  // Estado para modo masivo
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkDevType, setBulkDevType] = useState('');
+
+  // Guardar tareas masivas
+  const handleBulkSaveTasks = async () => {
+    if (!bulkDevType || !bulkText.trim() || !selectedModuleId) return;
+    const lines = bulkText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const tasks = lines
+      .map((line) => {
+        // Formato: Nombre: %
+        const match = line.match(/^(.*?):\s*(\d+)%?$/);
+        if (!match) return null;
+        return {
+          nombreActividad: match[1].trim(),
+          porcentaje: Number(match[2]),
+          developmentTypeId: bulkDevType,
+          fechaInicio: '',
+          fechaFinal: '',
+          moduleId: selectedModuleId,
+        };
+      })
+      .filter(Boolean);
+    for (const t of tasks) {
+      await createTask(t);
+    }
+    setBulkText('');
+    setShowBulk(false);
+  };
+
   const formatShortDate = (d) => {
     if (!d) return '-';
     if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
@@ -521,40 +555,24 @@ const ModulosPage = () => {
         </Modal.Header>
         <Modal.Body>
           <div className="mb-3">
-            <Form.Label>
-              {editingTaskId ? 'Editar Tarea' : 'Nueva Tarea'}
-            </Form.Label>
-            <Row className="mb-2">
-              <Col md={6}>
-                <Form.Group className="mb-2">
-                  <Form.Label>
-                    Nombre de la Actividad{' '}
-                    <span className="text-danger">*</span>
-                  </Form.Label>
-                  <Form.Control
-                    value={taskForm.nombreActividad}
-                    onChange={(e) =>
-                      setTaskForm((f) => ({
-                        ...f,
-                        nombreActividad: e.target.value,
-                      }))
-                    }
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
+            <div className="d-flex justify-content-end mb-2">
+              <Button
+                variant={showBulk ? 'secondary' : 'outline-secondary'}
+                size="sm"
+                onClick={() => setShowBulk((b) => !b)}
+              >
+                {showBulk ? 'Volver a modo individual' : 'Carga Masiva'}
+              </Button>
+            </div>
+            {showBulk ? (
+              <>
                 <Form.Group className="mb-2">
                   <Form.Label>
                     Tipo de Desarrollo <span className="text-danger">*</span>
                   </Form.Label>
                   <Form.Select
-                    value={taskForm.developmentTypeId}
-                    onChange={(e) =>
-                      setTaskForm((f) => ({
-                        ...f,
-                        developmentTypeId: e.target.value,
-                      }))
-                    }
+                    value={bulkDevType}
+                    onChange={(e) => setBulkDevType(e.target.value)}
                   >
                     <option value="">Selecciona un tipo...</option>
                     {(developmentTypesData || []).map((dt) => (
@@ -564,73 +582,146 @@ const ModulosPage = () => {
                     ))}
                   </Form.Select>
                 </Form.Group>
-              </Col>
-            </Row>
-            <Row className="mb-2">
-              <Col md={6}>
                 <Form.Group className="mb-2">
                   <Form.Label>
-                    Fechas <span className="text-danger">*</span>
+                    Lista de tareas (una por línea, formato: Nombre: %)
                   </Form.Label>
-                  <div className="d-flex align-items-center gap-2">
-                    <Form.Control
-                      type="date"
-                      value={taskForm.fechaInicio}
-                      onChange={(e) =>
-                        setTaskForm((f) => ({
-                          ...f,
-                          fechaInicio: e.target.value,
-                        }))
-                      }
-                    />
-                    <span className="mx-1">/</span>
-                    <Form.Control
-                      type="date"
-                      value={taskForm.fechaFinal}
-                      onChange={(e) =>
-                        setTaskForm((f) => ({
-                          ...f,
-                          fechaFinal: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-2">
-                  <Form.Label>Porcentaje (%)</Form.Label>
                   <Form.Control
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={taskForm.porcentaje}
-                    onChange={(e) =>
-                      setTaskForm((f) => ({
-                        ...f,
-                        porcentaje: Number(e.target.value),
-                      }))
+                    as="textarea"
+                    rows={8}
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder={
+                      'Ejemplo:\nNombre de tarea 1: 100%\nNombre de tarea 2: 80%'
                     }
                   />
                 </Form.Group>
-              </Col>
-            </Row>
-            <div className="d-flex gap-2">
-              {editingTaskId ? (
-                <>
-                  <Button variant="success" onClick={handleSaveTask}>
-                    Guardar
-                  </Button>
-                  <Button variant="secondary" onClick={handleCancelEditTask}>
-                    Cancelar
-                  </Button>
-                </>
-              ) : (
-                <Button variant="primary" onClick={handleSaveTask}>
-                  Agregar Tarea
+                <Button
+                  variant="primary"
+                  disabled={!bulkDevType || !bulkText.trim()}
+                  onClick={handleBulkSaveTasks}
+                >
+                  Guardar tareas masivas
                 </Button>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                <Form.Label>
+                  {editingTaskId ? 'Editar Tarea' : 'Nueva Tarea'}
+                </Form.Label>
+                <Row className="mb-2">
+                  <Col md={6}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>
+                        Nombre de la Actividad{' '}
+                        <span className="text-danger">*</span>
+                      </Form.Label>
+                      <Form.Control
+                        value={taskForm.nombreActividad}
+                        onChange={(e) =>
+                          setTaskForm((f) => ({
+                            ...f,
+                            nombreActividad: e.target.value,
+                          }))
+                        }
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>
+                        Tipo de Desarrollo{' '}
+                        <span className="text-danger">*</span>
+                      </Form.Label>
+                      <Form.Select
+                        value={taskForm.developmentTypeId}
+                        onChange={(e) =>
+                          setTaskForm((f) => ({
+                            ...f,
+                            developmentTypeId: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Selecciona un tipo...</option>
+                        {(developmentTypesData || []).map((dt) => (
+                          <option key={dt._id} value={dt._id}>
+                            {dt.nombre}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row className="mb-2">
+                  <Col md={6}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>
+                        Fechas <span className="text-danger">*</span>
+                      </Form.Label>
+                      <div className="d-flex align-items-center gap-2">
+                        <Form.Control
+                          type="date"
+                          value={taskForm.fechaInicio}
+                          onChange={(e) =>
+                            setTaskForm((f) => ({
+                              ...f,
+                              fechaInicio: e.target.value,
+                            }))
+                          }
+                        />
+                        <span className="mx-1">/</span>
+                        <Form.Control
+                          type="date"
+                          value={taskForm.fechaFinal}
+                          onChange={(e) =>
+                            setTaskForm((f) => ({
+                              ...f,
+                              fechaFinal: e.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Porcentaje (%)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={taskForm.porcentaje}
+                        onChange={(e) =>
+                          setTaskForm((f) => ({
+                            ...f,
+                            porcentaje: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <div className="d-flex gap-2">
+                  {editingTaskId ? (
+                    <>
+                      <Button variant="success" onClick={handleSaveTask}>
+                        Guardar
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={handleCancelEditTask}
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="primary" onClick={handleSaveTask}>
+                      Agregar Tarea
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <h6 className="mb-2">Tareas Asignadas</h6>
