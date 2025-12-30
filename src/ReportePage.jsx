@@ -400,38 +400,51 @@ const ReportePage = () => {
                                 'Module Tasks:',
                                 module.tasks?.fechaFinal
                               );
-                              const fechas = module.tasks
-                                .map((t) => t.fechaFinal)
+                              const fechasRaw = module.tasks.map(
+                                (t) => t.fechaFinal
+                              );
+                              const fechas = fechasRaw
                                 .filter(
                                   (f) =>
                                     f &&
                                     String(f).trim() !== '' &&
                                     f !== 'null' &&
                                     f !== 'undefined' &&
-                                    !isNaN(new Date(f).getTime())
-                                );
+                                    /^\d{4}-\d{2}-\d{2}$/.test(f)
+                                )
+                                .map((f) => {
+                                  const [y, m, d] = f.split('-');
+                                  return new Date(
+                                    Date.UTC(
+                                      Number(y),
+                                      Number(m) - 1,
+                                      Number(d)
+                                    )
+                                  );
+                                });
                               if (fechas.length === 0) {
                                 return (
                                   <span className="text-muted">Sin tareas</span>
                                 );
                               }
+                              // Log para depuración
+                              console.log('Fechas finales crudas:', fechasRaw);
+                              console.log('Fechas válidas (Date):', fechas);
                               // Obtener la mayor fecha como Date
                               const maxFecha = fechas.reduce((a, b) =>
-                                new Date(a) > new Date(b) ? a : b
+                                a > b ? a : b
                               );
+                              console.log('Fecha máxima encontrada:', maxFecha);
                               // Mostrar en formato local amigable
-                              return (
-                                <span>
-                                  {new Date(maxFecha).toLocaleDateString(
-                                    'es-PE',
-                                    {
-                                      year: 'numeric',
-                                      month: '2-digit',
-                                      day: '2-digit',
-                                    }
-                                  )}
-                                </span>
-                              );
+                              // Formatear la fecha máxima en UTC para evitar desfase de zona horaria
+                              const day = String(
+                                maxFecha.getUTCDate()
+                              ).padStart(2, '0');
+                              const month = String(
+                                maxFecha.getUTCMonth() + 1
+                              ).padStart(2, '0');
+                              const year = maxFecha.getUTCFullYear();
+                              return <span>{`${day}/${month}/${year}`}</span>;
                             })()}
                           </td>
                           <td className="px-3 py-3">
