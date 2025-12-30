@@ -15,7 +15,7 @@ import {
 } from 'react-bootstrap';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 
 const initialForm = {
@@ -52,6 +52,8 @@ const ModulosPage = () => {
   const pageSize = 5;
 
   const { currentUser } = useAuth();
+  const isLiderTecnico = currentUser?.perfil === 'Lider Tecnico';
+  const isFocal = currentUser?.isFocal === true && !isLiderTecnico;
 
   const formatShortDate = (d) => {
     if (!d) return '-';
@@ -264,9 +266,11 @@ const ModulosPage = () => {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h3 className="fw-bold">Módulos</h3>
-        <Button onClick={() => handleShowModal()} variant="primary">
-          Agregar módulo
-        </Button>
+        {(!isFocal || isLiderTecnico) && (
+          <Button onClick={() => handleShowModal()} variant="primary">
+            Agregar módulo
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -367,22 +371,28 @@ const ModulosPage = () => {
                       )}
                     </td>
                     <td>
-                      <Button
-                        size="sm"
-                        variant="warning"
-                        onClick={() => handleShowModal(m)}
-                        className="me-1"
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleDelete(m._id)}
-                        className="me-1"
-                      >
-                        Eliminar
-                      </Button>
+                      {/* Solo los no-focal pueden editar/eliminar */}
+                      {(!isFocal || isLiderTecnico) && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="warning"
+                            onClick={() => handleShowModal(m)}
+                            className="me-1"
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleDelete(m._id)}
+                            className="me-1"
+                          >
+                            Eliminar
+                          </Button>
+                        </>
+                      )}
+                      {/* Todos pueden asignar tareas */}
                       <Button
                         size="sm"
                         variant="success"
@@ -650,7 +660,7 @@ const ModulosPage = () => {
                       try {
                         const [y, m, d] = f.split('-').map(Number);
                         return Date.UTC(y, m - 1, d);
-                      } catch  {
+                      } catch {
                         return Infinity;
                       }
                     };
@@ -659,64 +669,66 @@ const ModulosPage = () => {
                     const db = parseDate(b.fechaFinal);
                     if (da !== db) return da - db; // fechas más próximas primero
 
-                    const pa = typeof a.porcentaje === 'number' ? a.porcentaje : 100;
-                    const pb = typeof b.porcentaje === 'number' ? b.porcentaje : 100;
+                    const pa =
+                      typeof a.porcentaje === 'number' ? a.porcentaje : 100;
+                    const pb =
+                      typeof b.porcentaje === 'number' ? b.porcentaje : 100;
                     return pa - pb; // porcentajes más cerca a 0 primero
                   })
                   .map((task) => {
-                  const devType = developmentTypesData?.find(
-                    (dt) => dt._id === task.developmentTypeId
-                  );
-                  const isEditing = editingTaskId === task._id;
-                  return (
-                    <tr
-                      key={task._id}
-                      className={
-                        isEditing ? 'table-warning' : 'hover-highlight'
-                      }
-                      style={{ cursor: 'pointer' }}
-                      onClick={(e) => handleOpenActivityModal(task._id, e)}
-                    >
-                      <td>{task.nombreActividad}</td>
-                      <td>{devType ? devType.nombre : '-'}</td>
-                      <td>
-                        {formatShortDate(task.fechaInicio)}{' '}
-                        <span className="mx-1">/</span>{' '}
-                        {formatShortDate(task.fechaFinal)}
-                      </td>
-                      <td>
-                        <span className="badge bg-info">
-                          {task.porcentaje}%
-                        </span>
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        {!editingTaskId && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="warning"
-                              onClick={() => handleEditTask(task)}
-                              className="me-1"
-                              title="Editar"
-                              aria-label="Editar"
-                            >
-                              <FaEdit />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => handleDeleteTask(task._id)}
-                              title="Eliminar"
-                              aria-label="Eliminar"
-                            >
-                              <FaTrash />
-                            </Button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+                    const devType = developmentTypesData?.find(
+                      (dt) => dt._id === task.developmentTypeId
+                    );
+                    const isEditing = editingTaskId === task._id;
+                    return (
+                      <tr
+                        key={task._id}
+                        className={
+                          isEditing ? 'table-warning' : 'hover-highlight'
+                        }
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => handleOpenActivityModal(task._id, e)}
+                      >
+                        <td>{task.nombreActividad}</td>
+                        <td>{devType ? devType.nombre : '-'}</td>
+                        <td>
+                          {formatShortDate(task.fechaInicio)}{' '}
+                          <span className="mx-1">/</span>{' '}
+                          {formatShortDate(task.fechaFinal)}
+                        </td>
+                        <td>
+                          <span className="badge bg-info">
+                            {task.porcentaje}%
+                          </span>
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {!editingTaskId && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="warning"
+                                onClick={() => handleEditTask(task)}
+                                className="me-1"
+                                title="Editar"
+                                aria-label="Editar"
+                              >
+                                <FaEdit />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => handleDeleteTask(task._id)}
+                                title="Eliminar"
+                                aria-label="Eliminar"
+                              >
+                                <FaTrash />
+                              </Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </Table>

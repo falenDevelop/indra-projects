@@ -6,7 +6,8 @@ import {
 } from 'react-router-dom';
 import AppRoutes from './AppRoutes';
 import LoginPage from './LoginPage';
-import { AuthProvider, useAuth } from './AuthContext';
+import { AuthProvider } from './AuthContext';
+import { useAuth } from './useAuth';
 import {
   Container,
   Row,

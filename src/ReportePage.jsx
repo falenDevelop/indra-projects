@@ -321,7 +321,7 @@ const ReportePage = () => {
                     >
                       <td
                         className="px-3 py-3"
-                        colSpan={4 + developmentTypes.length + 1}
+                        colSpan={5 + developmentTypes.length + 1}
                       >
                         <div className="d-flex align-items-center gap-2 fw-bold">
                           {expandedTeams[team.nombre] ? (
@@ -392,7 +392,7 @@ const ReportePage = () => {
                             {(() => {
                               if (!module.tasks || module.tasks.length === 0) {
                                 return (
-                                  <span className="text-muted">Sin tareas</span>
+                                  <span className="text-muted">Vacio</span>
                                 );
                               }
                               // Filtrar solo tareas con fechaFinal válida y no vacía
@@ -424,7 +424,7 @@ const ReportePage = () => {
                                 });
                               if (fechas.length === 0) {
                                 return (
-                                  <span className="text-muted">Sin tareas</span>
+                                  <span className="text-muted">Vacio</span>
                                 );
                               }
                               // Log para depuración

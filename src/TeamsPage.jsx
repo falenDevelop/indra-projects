@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useAuth } from './useAuth';
 import {
   Table,
   Button,
@@ -74,7 +75,9 @@ const TeamsPage = () => {
 
   const handleSave = async () => {
     if (!form.nombre || !form.bloque || !form.projectId) {
-      alert('Por favor complete todos los campos obligatorios (Proyecto y Bloque)');
+      alert(
+        'Por favor complete todos los campos obligatorios (Proyecto y Bloque)'
+      );
       return;
     }
 
@@ -131,6 +134,8 @@ const TeamsPage = () => {
     setIsFocal(false);
   };
 
+  const { currentUser, login } = useAuth();
+
   const handleAddMember = async () => {
     if (!selectedProviderId) {
       alert('Por favor seleccione un proveedor');
@@ -152,6 +157,11 @@ const TeamsPage = () => {
           moduleId: selectedModuleId || undefined,
           isFocal: isFocal,
         });
+        // Si el usuario editado es el logueado, actualizar su isFocal en contexto/localStorage
+        if (currentUser && provider.nombre === currentUser.nombre) {
+          const updatedUser = { ...currentUser, isFocal };
+          login(updatedUser);
+        }
         handleCancelEdit();
       } else {
         // Modo agregar
@@ -163,6 +173,11 @@ const TeamsPage = () => {
           moduleId: selectedModuleId || undefined,
           isFocal: isFocal,
         });
+        // Si el usuario agregado es el logueado, actualizar su isFocal en contexto/localStorage
+        if (currentUser && provider.nombre === currentUser.nombre) {
+          const updatedUser = { ...currentUser, isFocal };
+          login(updatedUser);
+        }
         setSelectedProviderId('');
         setSelectedModuleId('');
         setIsFocal(false);
@@ -289,10 +304,18 @@ const TeamsPage = () => {
                 Bloque <span className="text-danger">*</span>
               </Form.Label>
               <Form.Group className="mb-2">
-                <Form.Label>Proyecto <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Proyecto <span className="text-danger">*</span>
+                </Form.Label>
                 <Form.Select
                   value={form.projectId}
-                  onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value, bloque: '' }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      projectId: e.target.value,
+                      bloque: '',
+                    }))
+                  }
                   required
                 >
                   <option value="">Selecciona un proyecto...</option>
@@ -306,12 +329,16 @@ const TeamsPage = () => {
 
               <Form.Select
                 value={form.bloque}
-                onChange={(e) => setForm((f) => ({ ...f, bloque: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, bloque: e.target.value }))
+                }
                 required
               >
                 <option value="">Selecciona un bloque...</option>
                 {(blocksData || [])
-                  .filter((b) => (form.projectId ? b.projectId === form.projectId : true))
+                  .filter((b) =>
+                    form.projectId ? b.projectId === form.projectId : true
+                  )
                   .map((bloque) => (
                     <option key={bloque._id} value={bloque.nombre}>
                       {bloque.nombre}

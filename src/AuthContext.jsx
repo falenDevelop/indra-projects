@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-
-const AuthContext = createContext(null);
+import React, { useState } from 'react';
+import { AuthContext } from './AuthContextContext';
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
@@ -32,11 +31,21 @@ export const AuthProvider = ({ children }) => {
     return currentUser?.perfil === 'Lider Tecnico';
   };
 
+  // Considerar usuario focal
+  const isFocal = currentUser?.isFocal === true;
+
   const hasAccess = (menuId) => {
     if (!currentUser) return false;
 
     // Lider Tecnico tiene acceso a todo
     if (isLiderTecnico()) return true;
+
+    // Focal puede ver reporte, tracking y features (modulos)
+    if (isFocal) {
+      return (
+        menuId === 'reporte' || menuId === 'tracking' || menuId === 'modulos'
+      );
+    }
 
     // Otros perfiles solo tienen acceso a Reporte y Tracking
     return menuId === 'reporte' || menuId === 'tracking';
@@ -58,11 +67,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Hook personalizado para usar el contexto
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+// El hook useAuth está en useAuth.js

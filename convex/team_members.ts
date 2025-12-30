@@ -1,5 +1,23 @@
+// Consulta si un usuario es focal en algún equipo/módulo
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
+export const isFocalUser = query({
+  args: {
+    nombre: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const found = await ctx.db
+      .query('team_members')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('nombre'), args.nombre),
+          q.eq(q.field('isFocal'), true)
+        )
+      )
+      .first();
+    return { isFocal: !!found };
+  },
+});
 
 export const list = query({
   handler: async (ctx) => {
@@ -38,10 +56,7 @@ export const create = mutation({
           q.eq(q.field('providerId'), args.providerId),
           args.moduleId
             ? q.eq(q.field('moduleId'), args.moduleId)
-            : q.or(
-                q.eq(q.field('moduleId'), null),
-                q.not(q.field('moduleId'))
-              )
+            : q.or(q.eq(q.field('moduleId'), null), q.not(q.field('moduleId')))
         )
       )
       .first();

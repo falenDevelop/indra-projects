@@ -16,7 +16,7 @@ import {
 import { FaEdit, FaTrash } from 'react-icons/fa';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
 
 const TrackingPage = () => {
   const [selectedModuleId, setSelectedModuleId] = useState(null);
@@ -806,44 +806,43 @@ const TrackingPage = () => {
                       </div>
                     </div>
                     <div className="text-end">
-                          <Form.Select
-                            size="sm"
-                            value={d.estado}
-                            onChange={(e) =>
-                              handleChangeDefectState(d, e.target.value)
-                            }
-                            style={{
-                              width: '160px',
-                              display: 'inline-block',
-                              marginRight: 8,
-                            }}
-                          >
-                            {DEFECT_STATES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </Form.Select>
-                          <div className="mt-2">
-                            <Button
-                              size="sm"
-                              variant="warning"
-                              className="me-1"
-                              onClick={() => {
-                                handleEditDefect({ ...d, id: d.id || d._id });
-                              }}
-                            >
-                              <FaEdit />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => handleDeleteDefect(d.id || d._id)}
-                            >
-                              <FaTrash />
-                            </Button>
-                          </div>
-                    
+                      <Form.Select
+                        size="sm"
+                        value={d.estado}
+                        onChange={(e) =>
+                          handleChangeDefectState(d, e.target.value)
+                        }
+                        style={{
+                          width: '160px',
+                          display: 'inline-block',
+                          marginRight: 8,
+                        }}
+                      >
+                        {DEFECT_STATES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          variant="warning"
+                          className="me-1"
+                          onClick={() => {
+                            handleEditDefect({ ...d, id: d.id || d._id });
+                          }}
+                        >
+                          <FaEdit />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDeleteDefect(d.id || d._id)}
+                        >
+                          <FaTrash />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

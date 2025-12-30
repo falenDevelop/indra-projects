@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
 import ProvidersPage from './ProvidersPage';
 import ProjectsPage from './ProjectsPage';
 import TeamsPage from './TeamsPage';

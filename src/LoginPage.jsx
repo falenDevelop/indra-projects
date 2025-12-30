@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Container, Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { useAuth } from './AuthContext';
+import { useAuth } from './useAuth';
 
 const LoginPage = () => {
   const [correoEmpresa, setCorreoEmpresa] = useState('');
@@ -11,11 +11,18 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
+  const [pendingUser, setPendingUser] = useState(null);
 
   // Query de login - se ejecuta cuando tenemos credenciales
   const loginResult = useQuery(
     api.auth.login,
     correoEmpresa && xp && isLoading ? { correoEmpresa, xp } : 'skip'
+  );
+
+  // Query para saber si el usuario es focal
+  const focalResult = useQuery(
+    api.team_members.isFocalUser,
+    pendingUser ? { nombre: pendingUser.nombre } : 'skip'
   );
 
   // Procesar resultado del login
@@ -24,14 +31,23 @@ const LoginPage = () => {
       setIsLoading(false);
 
       if (loginResult.success) {
-        login(loginResult.user);
+        // Guardar usuario pendiente para consultar si es focal
+        setPendingUser(loginResult.user);
         setError('');
       } else {
         setError(loginResult.message);
         setXp(''); // Limpiar contraseña
       }
     }
-  }, [loginResult, isLoading, login]);
+  }, [loginResult, isLoading]);
+
+  // Cuando llega la respuesta de si es focal, guardar en contexto/localStorage
+  React.useEffect(() => {
+    if (pendingUser && focalResult) {
+      login({ ...pendingUser, isFocal: focalResult.isFocal });
+      setPendingUser(null);
+    }
+  }, [pendingUser, focalResult, login]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
