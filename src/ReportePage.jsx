@@ -596,6 +596,11 @@ const ReportePage = () => {
                               {d.ticket}
                             </a>
                           </div>
+                          {d.data && (
+                            <div className="small text-primary">
+                              Data: {d.data}
+                            </div>
+                          )}
                           <div className="small">{d.comentario}</div>
                           <div className="small text-muted mt-1">
                             Creado por: {d.creadoPor || '-'}

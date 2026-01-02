@@ -38,6 +38,8 @@ const TrackingPage = () => {
     estado: 'Pendiente',
   });
   const [editingDefectId, setEditingDefectId] = useState(null);
+  const [showBulkDefects, setShowBulkDefects] = useState(false);
+  const [bulkDefectText, setBulkDefectText] = useState('');
   // Convex-backed defects (loaded per selected defect module)
   const defectsQuery = useQuery(
     api.defects.listByModule,
@@ -75,6 +77,46 @@ const TrackingPage = () => {
       estado: 'Pendiente',
     });
     setShowDefectsModal(true);
+  };
+
+  const handleBulkSaveDefects = async () => {
+    if (!bulkDefectText.trim() || !selectedDefectModuleId) return;
+    const lines = bulkDefectText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      // formato: ticket: data, comentario
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      const ticket = line.slice(0, idx).trim();
+      const rest = line.slice(idx + 1).trim();
+      let data = '';
+      let comentario = '';
+      const comma = rest.indexOf(',');
+      if (comma === -1) {
+        data = rest;
+      } else {
+        data = rest.slice(0, comma).trim();
+        comentario = rest.slice(comma + 1).trim();
+      }
+      try {
+        await createDefect({
+          moduleId: selectedDefectModuleId,
+          ticket,
+          data,
+          comentario,
+          estado: 'Resuelto',
+          creadoPor: currentUser?.nombre || 'Usuario desconocido',
+          creadoPorXp: currentUser?.xp || 'N/A',
+          creadoAt: Date.now(),
+        });
+      } catch (err) {
+        console.error('Error creating defect (bulk):', err);
+      }
+    }
+    setBulkDefectText('');
+    setShowBulkDefects(false);
   };
 
   const handleCloseDefects = () => {
@@ -712,92 +754,143 @@ const TrackingPage = () => {
                 Solo lectura: no tiene permisos para crear/editar defectos.
               </div>
             ) : (
-              <Form onSubmit={handleSaveDefect} className="mb-3">
-                <Row>
-                  <Col md={4}>
+              <>
+                <div className="d-flex justify-content-end mb-2">
+                  <Button
+                    variant={
+                      showBulkDefects ? 'secondary' : 'outline-secondary'
+                    }
+                    size="sm"
+                    onClick={() => setShowBulkDefects((b) => !b)}
+                  >
+                    {showBulkDefects
+                      ? 'Volver a modo individual'
+                      : 'Carga Masiva'}
+                  </Button>
+                </div>
+
+                {showBulkDefects ? (
+                  <>
                     <Form.Group className="mb-2">
-                      <Form.Label>Ticket</Form.Label>
+                      <Form.Label>Lista de defectos (una por línea)</Form.Label>
                       <Form.Control
-                        value={defectForm.ticket}
-                        onChange={(e) =>
-                          setDefectForm((f) => ({
-                            ...f,
-                            ticket: e.target.value,
-                          }))
+                        as="textarea"
+                        rows={8}
+                        value={bulkDefectText}
+                        onChange={(e) => setBulkDefectText(e.target.value)}
+                        placeholder={
+                          'Formato: TICKET: data, comentario\nEjemplo:\nGLOMOPE-103933: L48100039 / Nttdata-01 / 4042938000719123 / PIN 6977 / CVV 321, Textos incorrectos y nombre del botón incorrecto (Diseño)'
                         }
-                        required
                       />
                     </Form.Group>
-                  </Col>
-                  <Col md={4}>
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="primary"
+                        disabled={!bulkDefectText.trim()}
+                        onClick={handleBulkSaveDefects}
+                      >
+                        Guardar defectos masivos
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setShowBulkDefects(false);
+                          setBulkDefectText('');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <Form onSubmit={handleSaveDefect} className="mb-3">
+                    <Row>
+                      <Col md={4}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Ticket</Form.Label>
+                          <Form.Control
+                            value={defectForm.ticket}
+                            onChange={(e) =>
+                              setDefectForm((f) => ({
+                                ...f,
+                                ticket: e.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Estado</Form.Label>
+                          <Form.Select
+                            value={defectForm.estado}
+                            onChange={(e) =>
+                              setDefectForm((f) => ({
+                                ...f,
+                                estado: e.target.value,
+                              }))
+                            }
+                          >
+                            {DEFECT_STATES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                    </Row>
                     <Form.Group className="mb-2">
-                      <Form.Label>Estado</Form.Label>
-                      <Form.Select
-                        value={defectForm.estado}
+                      <Form.Label>Data</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={defectForm.data}
                         onChange={(e) =>
                           setDefectForm((f) => ({
                             ...f,
-                            estado: e.target.value,
+                            data: e.target.value,
                           }))
                         }
-                      >
-                        {DEFECT_STATES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      />
                     </Form.Group>
-                  </Col>
-                </Row>
-                <Form.Group className="mb-2">
-                  <Form.Label>Data</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={defectForm.data}
-                    onChange={(e) =>
-                      setDefectForm((f) => ({
-                        ...f,
-                        data: e.target.value,
-                      }))
-                    }
-                  />
-                </Form.Group>
-                <Form.Group className="mb-2">
-                  <Form.Label>Comentario</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    value={defectForm.comentario}
-                    onChange={(e) =>
-                      setDefectForm((f) => ({
-                        ...f,
-                        comentario: e.target.value,
-                      }))
-                    }
-                  />
-                </Form.Group>
-                <div className="d-flex gap-2">
-                  <Button type="submit" variant="primary">
-                    {editingDefectId ? 'Guardar' : 'Agregar'}
-                  </Button>
-                  {editingDefectId && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setEditingDefectId(null);
-                        setDefectForm({
-                          ticket: '',
-                          comentario: '',
-                          estado: 'Pendiente',
-                        });
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                </div>
-              </Form>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Comentario</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={defectForm.comentario}
+                        onChange={(e) =>
+                          setDefectForm((f) => ({
+                            ...f,
+                            comentario: e.target.value,
+                          }))
+                        }
+                      />
+                    </Form.Group>
+                    <div className="d-flex gap-2">
+                      <Button type="submit" variant="primary">
+                        {editingDefectId ? 'Guardar' : 'Agregar'}
+                      </Button>
+                      {editingDefectId && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setEditingDefectId(null);
+                            setDefectForm({
+                              ticket: '',
+                              comentario: '',
+                              estado: 'Pendiente',
+                            });
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
+                  </Form>
+                )}
+              </>
             )}
 
             <h6>Listado de Defectos</h6>
