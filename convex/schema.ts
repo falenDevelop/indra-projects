@@ -50,6 +50,12 @@ export default defineSchema({
     estado: v.string(),
     repositorio: v.optional(v.string()),
     figma: v.optional(v.string()),
+    pruebasAndroid: v.optional(v.number()),
+    pruebasIOS: v.optional(v.number()),
+    pruebasHuawei: v.optional(v.number()),
+    pruebasAndroidEjecutadas: v.optional(v.number()),
+    pruebasIOSEjecutadas: v.optional(v.number()),
+    pruebasHuaweiEjecutadas: v.optional(v.number()),
   }),
   development_types: defineTable({
     nombre: v.string(),

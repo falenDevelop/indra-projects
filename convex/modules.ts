@@ -14,6 +14,12 @@ export const create = mutation({
     estado: v.string(),
     repositorio: v.optional(v.string()),
     figma: v.optional(v.string()),
+    pruebasAndroid: v.optional(v.number()),
+    pruebasIOS: v.optional(v.number()),
+    pruebasHuawei: v.optional(v.number()),
+    pruebasAndroidEjecutadas: v.optional(v.number()),
+    pruebasIOSEjecutadas: v.optional(v.number()),
+    pruebasHuaweiEjecutadas: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert('modules', args);
@@ -28,6 +34,12 @@ export const update = mutation({
     estado: v.string(),
     repositorio: v.optional(v.string()),
     figma: v.optional(v.string()),
+    pruebasAndroid: v.optional(v.number()),
+    pruebasIOS: v.optional(v.number()),
+    pruebasHuawei: v.optional(v.number()),
+    pruebasAndroidEjecutadas: v.optional(v.number()),
+    pruebasIOSEjecutadas: v.optional(v.number()),
+    pruebasHuaweiEjecutadas: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...data } = args;

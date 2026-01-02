@@ -21,6 +21,15 @@ const DefectosPage = () => {
 
   const [moduleFilter, setModuleFilter] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
+  const [showPruebasModal, setShowPruebasModal] = useState(false);
+  const [pruebasData, setPruebasData] = useState({
+    android: 0,
+    ios: 0,
+    huawei: 0,
+    androidEjecutadas: 0,
+    iosEjecutadas: 0,
+    huaweiEjecutadas: 0,
+  });
 
   const estados = useMemo(() => {
     const s = new Set(defects.map((d) => d.estado));
@@ -66,14 +75,72 @@ const DefectosPage = () => {
 
   const totalsByEstado = useMemo(() => {
     const map = {};
-    defects.forEach((d) => {
+    filtered.forEach((d) => {
       const k = d.estado || 'Sin Estado';
       map[k] = (map[k] || 0) + 1;
     });
     return map;
-  }, [defects]);
+  }, [filtered]);
 
-  const totalDefects = defects.length;
+  const totalDefects = filtered.length;
+
+  const totalPruebas = useMemo(() => {
+    if (!moduleFilter) {
+      // Todos los módulos: sumar todas las pruebas
+      const android = modules.reduce(
+        (sum, m) => sum + (m.pruebasAndroid || 0),
+        0
+      );
+      const ios = modules.reduce((sum, m) => sum + (m.pruebasIOS || 0), 0);
+      const huawei = modules.reduce(
+        (sum, m) => sum + (m.pruebasHuawei || 0),
+        0
+      );
+      const androidEjecutadas = modules.reduce(
+        (sum, m) => sum + (m.pruebasAndroidEjecutadas || 0),
+        0
+      );
+      const iosEjecutadas = modules.reduce(
+        (sum, m) => sum + (m.pruebasIOSEjecutadas || 0),
+        0
+      );
+      const huaweiEjecutadas = modules.reduce(
+        (sum, m) => sum + (m.pruebasHuaweiEjecutadas || 0),
+        0
+      );
+      return {
+        android,
+        ios,
+        huawei,
+        androidEjecutadas,
+        iosEjecutadas,
+        huaweiEjecutadas,
+        androidPendientes: android - androidEjecutadas,
+        iosPendientes: ios - iosEjecutadas,
+        huaweiPendientes: huawei - huaweiEjecutadas,
+      };
+    } else {
+      // Módulo específico
+      const mod = modules.find((m) => m._id === moduleFilter);
+      const android = mod?.pruebasAndroid || 0;
+      const ios = mod?.pruebasIOS || 0;
+      const huawei = mod?.pruebasHuawei || 0;
+      const androidEjecutadas = mod?.pruebasAndroidEjecutadas || 0;
+      const iosEjecutadas = mod?.pruebasIOSEjecutadas || 0;
+      const huaweiEjecutadas = mod?.pruebasHuaweiEjecutadas || 0;
+      return {
+        android,
+        ios,
+        huawei,
+        androidEjecutadas,
+        iosEjecutadas,
+        huaweiEjecutadas,
+        androidPendientes: android - androidEjecutadas,
+        iosPendientes: ios - iosEjecutadas,
+        huaweiPendientes: huawei - huaweiEjecutadas,
+      };
+    }
+  }, [modules, moduleFilter]);
 
   const estadoVariant = (estado) => {
     const key = (estado || '').toLowerCase();
@@ -91,6 +158,7 @@ const DefectosPage = () => {
   const [editingId, setEditingId] = useState(null);
   const { currentUser } = useAuth();
   const createDefect = useMutation(api.defects.create);
+  const updateModule = useMutation(api.modules.update);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newDefect, setNewDefect] = useState({
     moduleId: '',
@@ -99,6 +167,51 @@ const DefectosPage = () => {
     comentario: '',
     estado: estados[0] || '',
   });
+
+  const handleEditPruebas = () => {
+    if (!moduleFilter) {
+      alert('Selecciona un feature específico para editar las pruebas');
+      return;
+    }
+    const mod = modules.find((m) => m._id === moduleFilter);
+    if (!mod) return;
+    setPruebasData({
+      android: mod.pruebasAndroid || 0,
+      ios: mod.pruebasIOS || 0,
+      huawei: mod.pruebasHuawei || 0,
+      androidEjecutadas: mod.pruebasAndroidEjecutadas || 0,
+      iosEjecutadas: mod.pruebasIOSEjecutadas || 0,
+      huaweiEjecutadas: mod.pruebasHuaweiEjecutadas || 0,
+    });
+    setShowPruebasModal(true);
+  };
+
+  const handleSavePruebas = async (e) => {
+    e.preventDefault();
+    if (!moduleFilter) return;
+    try {
+      const mod = modules.find((m) => m._id === moduleFilter);
+      if (!mod) return;
+      await updateModule({
+        id: mod._id,
+        nombre: mod.nombre,
+        descripcion: mod.descripcion,
+        estado: mod.estado,
+        repositorio: mod.repositorio,
+        figma: mod.figma,
+        pruebasAndroid: pruebasData.android,
+        pruebasIOS: pruebasData.ios,
+        pruebasHuawei: pruebasData.huawei,
+        pruebasAndroidEjecutadas: pruebasData.androidEjecutadas,
+        pruebasIOSEjecutadas: pruebasData.iosEjecutadas,
+        pruebasHuaweiEjecutadas: pruebasData.huaweiEjecutadas,
+      });
+      setShowPruebasModal(false);
+    } catch (err) {
+      console.error('Error actualizando pruebas:', err);
+      alert('Error al actualizar pruebas');
+    }
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -186,6 +299,256 @@ const DefectosPage = () => {
               </div>
             </Col>
           </Row>
+        </Card.Body>
+      </Card>
+
+      <Card className="mb-3">
+        <Card.Body>
+          <Row className="mb-4">
+            <Col>
+              <h5 className="mb-3">
+                {moduleFilter ? `Pruebas del Feature: ${getModuleName(moduleFilter)}` : 'Resumen Global de Pruebas'}
+              </h5>
+              <Row className="text-center">
+                <Col md={3}>
+                  <div className="p-3 bg-light rounded">
+                    <div className="small text-muted">Total de Pruebas</div>
+                    <h3 className="mb-0 text-primary">
+                      {totalPruebas.android +
+                        totalPruebas.ios +
+                        totalPruebas.huawei}
+                    </h3>
+                  </div>
+                </Col>
+                <Col md={3}>
+                  <div className="p-3 bg-light rounded">
+                    <div className="small text-muted">Ejecutadas</div>
+                    <h3 className="mb-0 text-success">
+                      {totalPruebas.androidEjecutadas +
+                        totalPruebas.iosEjecutadas +
+                        totalPruebas.huaweiEjecutadas}
+                    </h3>
+                  </div>
+                </Col>
+                <Col md={3}>
+                  <div className="p-3 bg-light rounded">
+                    <div className="small text-muted">Pendientes</div>
+                    <h3 className="mb-0 text-warning">
+                      {totalPruebas.androidPendientes +
+                        totalPruebas.iosPendientes +
+                        totalPruebas.huaweiPendientes}
+                    </h3>
+                  </div>
+                </Col>
+                <Col md={3}>
+                  <div className="p-3 bg-success bg-opacity-10 rounded">
+                    <div className="small text-muted">% Avance Global</div>
+                    <h3 className="mb-0 text-success">
+                      {(() => {
+                        const total =
+                          totalPruebas.android +
+                          totalPruebas.ios +
+                          totalPruebas.huawei;
+                        const ejecutadas =
+                          totalPruebas.androidEjecutadas +
+                          totalPruebas.iosEjecutadas +
+                          totalPruebas.huaweiEjecutadas;
+                        return total > 0
+                          ? ((ejecutadas / total) * 100).toFixed(1)
+                          : 0;
+                      })()}
+                      %
+                    </h3>
+                  </div>
+                </Col>
+              </Row>
+            </Col>
+          </Row>
+
+          <hr />
+
+          <Row className="g-3">
+            <Col md={4}>
+              <Card className="h-100 border-success">
+                <Card.Body>
+                  <h6 className="text-success mb-3">
+                    <i className="bi bi-android2"></i> Android
+                  </h6>
+                  <div className="mb-2">
+                    <small className="text-muted">Total:</small>
+                    <strong className="ms-2">{totalPruebas.android}</strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Ejecutadas:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.androidEjecutadas}
+                    </strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Pendientes:</small>
+                    <strong className="ms-2 text-warning">
+                      {totalPruebas.androidPendientes}
+                    </strong>
+                  </div>
+                  <div className="mt-3 pt-2 border-top">
+                    <small className="text-muted">% Avance:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.android > 0
+                        ? (
+                            (totalPruebas.androidEjecutadas /
+                              totalPruebas.android) *
+                            100
+                          ).toFixed(1)
+                        : 0}
+                      %
+                    </strong>
+                    <div
+                      className="progress mt-2"
+                      style={{ height: '8px' }}
+                    >
+                      <div
+                        className="progress-bar bg-success"
+                        style={{
+                          width: `${
+                            totalPruebas.android > 0
+                              ? (totalPruebas.androidEjecutadas /
+                                  totalPruebas.android) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col md={4}>
+              <Card className="h-100 border-primary">
+                <Card.Body>
+                  <h6 className="text-primary mb-3">
+                    <i className="bi bi-apple"></i> iOS
+                  </h6>
+                  <div className="mb-2">
+                    <small className="text-muted">Total:</small>
+                    <strong className="ms-2">{totalPruebas.ios}</strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Ejecutadas:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.iosEjecutadas}
+                    </strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Pendientes:</small>
+                    <strong className="ms-2 text-warning">
+                      {totalPruebas.iosPendientes}
+                    </strong>
+                  </div>
+                  <div className="mt-3 pt-2 border-top">
+                    <small className="text-muted">% Avance:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.ios > 0
+                        ? (
+                            (totalPruebas.iosEjecutadas /
+                              totalPruebas.ios) *
+                            100
+                          ).toFixed(1)
+                        : 0}
+                      %
+                    </strong>
+                    <div
+                      className="progress mt-2"
+                      style={{ height: '8px' }}
+                    >
+                      <div
+                        className="progress-bar bg-primary"
+                        style={{
+                          width: `${
+                            totalPruebas.ios > 0
+                              ? (totalPruebas.iosEjecutadas /
+                                  totalPruebas.ios) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col md={4}>
+              <Card className="h-100 border-danger">
+                <Card.Body>
+                  <h6 className="text-danger mb-3">
+                    <i className="bi bi-phone"></i> Huawei
+                  </h6>
+                  <div className="mb-2">
+                    <small className="text-muted">Total:</small>
+                    <strong className="ms-2">{totalPruebas.huawei}</strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Ejecutadas:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.huaweiEjecutadas}
+                    </strong>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">Pendientes:</small>
+                    <strong className="ms-2 text-warning">
+                      {totalPruebas.huaweiPendientes}
+                    </strong>
+                  </div>
+                  <div className="mt-3 pt-2 border-top">
+                    <small className="text-muted">% Avance:</small>
+                    <strong className="ms-2 text-success">
+                      {totalPruebas.huawei > 0
+                        ? (
+                            (totalPruebas.huaweiEjecutadas /
+                              totalPruebas.huawei) *
+                            100
+                          ).toFixed(1)
+                        : 0}
+                      %
+                    </strong>
+                    <div
+                      className="progress mt-2"
+                      style={{ height: '8px' }}
+                    >
+                      <div
+                        className="progress-bar bg-danger"
+                        style={{
+                          width: `${
+                            totalPruebas.huawei > 0
+                              ? (totalPruebas.huaweiEjecutadas /
+                                  totalPruebas.huawei) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          {moduleFilter && (
+            <Row className="mt-3">
+              <Col className="text-center">
+                <Button
+                  variant="outline-primary"
+                  onClick={handleEditPruebas}
+                >
+                  Editar pruebas del feature
+                </Button>
+              </Col>
+            </Row>
+          )}
         </Card.Body>
       </Card>
 
@@ -349,6 +712,131 @@ const DefectosPage = () => {
               Cancelar
             </Button>
             <Button type="submit">{editingId ? 'Guardar' : 'Crear'}</Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      <Modal show={showPruebasModal} onHide={() => setShowPruebasModal(false)}>
+        <Form onSubmit={handleSavePruebas}>
+          <Modal.Header closeButton>
+            <Modal.Title>Editar cantidad de pruebas</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <h6 className="mb-3">Android</h6>
+            <Form.Group className="mb-2">
+              <Form.Label>Total de pruebas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.android}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    android: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Pruebas ejecutadas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.androidEjecutadas}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    androidEjecutadas: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+              <Form.Text className="text-muted">
+                Pendientes:{' '}
+                {pruebasData.android - pruebasData.androidEjecutadas}
+              </Form.Text>
+            </Form.Group>
+
+            <hr />
+
+            <h6 className="mb-3">iOS</h6>
+            <Form.Group className="mb-2">
+              <Form.Label>Total de pruebas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.ios}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    ios: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Pruebas ejecutadas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.iosEjecutadas}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    iosEjecutadas: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+              <Form.Text className="text-muted">
+                Pendientes: {pruebasData.ios - pruebasData.iosEjecutadas}
+              </Form.Text>
+            </Form.Group>
+
+            <hr />
+
+            <h6 className="mb-3">Huawei</h6>
+            <Form.Group className="mb-2">
+              <Form.Label>Total de pruebas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.huawei}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    huawei: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Pruebas ejecutadas</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                value={pruebasData.huaweiEjecutadas}
+                onChange={(e) =>
+                  setPruebasData((s) => ({
+                    ...s,
+                    huaweiEjecutadas: parseInt(e.target.value) || 0,
+                  }))
+                }
+              />
+              <Form.Text className="text-muted">
+                Pendientes: {pruebasData.huawei - pruebasData.huaweiEjecutadas}
+              </Form.Text>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowPruebasModal(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">Guardar</Button>
           </Modal.Footer>
         </Form>
       </Modal>
