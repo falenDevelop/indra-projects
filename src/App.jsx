@@ -97,6 +97,16 @@ function AppContent() {
     },
   ];
 
+  // Mostrar el ítem Defectos sólo para perfiles QA o Lider Tecnico
+  if (currentUser?.perfil === 'QA' || currentUser?.perfil === 'Lider Tecnico') {
+    allMenuItems.splice(2, 0, {
+      id: 'defectos',
+      icon: FaFileAlt,
+      label: 'Defectos',
+      path: '/defectos',
+    });
+  }
+
   // Filtrar menú según permisos del usuario
   const menuItems = allMenuItems.filter((item) => hasAccess(item.id));
 

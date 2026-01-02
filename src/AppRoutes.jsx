@@ -9,6 +9,7 @@ import ModulosPage from './ModulosPage';
 import DevelopmentTypesPage from './DevelopmentTypesPage';
 import TrackingPage from './TrackingPage';
 import ReportePage from './ReportePage';
+import DefectosPage from './DefectosPage';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children, requiredAccess }) => {
@@ -84,6 +85,16 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requiredAccess="tipos-desarrollo">
             <DevelopmentTypesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Ruta para Defectos */}
+      <Route
+        path="/defectos"
+        element={
+          <ProtectedRoute requiredAccess="defectos">
+            <DefectosPage />
           </ProtectedRoute>
         }
       />

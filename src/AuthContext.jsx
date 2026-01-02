@@ -40,6 +40,13 @@ export const AuthProvider = ({ children }) => {
     // Lider Tecnico tiene acceso a todo
     if (isLiderTecnico()) return true;
 
+    // QA tiene acceso a defectos además de reporte/tracking
+    if (currentUser?.perfil === 'QA') {
+      return (
+        menuId === 'reporte' || menuId === 'tracking' || menuId === 'defectos'
+      );
+    }
+
     // Focal puede ver reporte, tracking y features (modulos)
     if (isFocal) {
       return (
