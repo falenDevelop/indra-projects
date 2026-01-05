@@ -308,6 +308,12 @@ const ReportePage = () => {
                   >
                     % Avance Total
                   </th>
+                  <th
+                    className="px-3 py-3 text-center fw-semibold"
+                    style={{ width: '120px' }}
+                  >
+                    % Avance dev
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -321,7 +327,7 @@ const ReportePage = () => {
                     >
                       <td
                         className="px-3 py-3"
-                        colSpan={5 + developmentTypes.length + 1}
+                        colSpan={5 + developmentTypes.length + 2}
                       >
                         <div className="d-flex align-items-center gap-2 fw-bold">
                           {expandedTeams[team.nombre] ? (
@@ -524,6 +530,35 @@ const ReportePage = () => {
                               </span>
                             </div>
                           </td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="d-flex align-items-center justify-content-center gap-2">
+                              <div
+                                className="progress flex-grow-1"
+                                style={{ maxWidth: '60px', height: '8px' }}
+                              >
+                                <div
+                                  className={`progress-bar ${
+                                    module.porcentajeSinDefectos >= 75
+                                      ? 'bg-success'
+                                      : module.porcentajeSinDefectos >= 50
+                                        ? 'bg-primary'
+                                        : module.porcentajeSinDefectos >= 25
+                                          ? 'bg-warning'
+                                          : 'bg-danger'
+                                  }`}
+                                  style={{
+                                    width: `${module.porcentajeSinDefectos}%`,
+                                  }}
+                                />
+                              </div>
+                              <span
+                                className="fw-bold text-dark small"
+                                style={{ minWidth: '50px', textAlign: 'right' }}
+                              >
+                                {module.porcentajeSinDefectos.toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                   </React.Fragment>
@@ -562,19 +597,11 @@ const ReportePage = () => {
                 <div className="list-group">
                   {[...defectsForModule]
                     .sort((a, b) => {
-                      const completed = ['resuelto', 'descartado'];
-                      const aDone = completed.includes(
-                        (a.estado || '').toLowerCase()
-                      )
-                        ? 1
-                        : 0;
-                      const bDone = completed.includes(
-                        (b.estado || '').toLowerCase()
-                      )
-                        ? 1
-                        : 0;
-                      if (aDone !== bDone) return aDone - bDone; // no completados antes
-                      return (b.creadoAt || 0) - (a.creadoAt || 0);
+                      const ea = String(a.estado || '').toLowerCase();
+                      const eb = String(b.estado || '').toLowerCase();
+                      return ea.localeCompare(eb, 'es', {
+                        sensitivity: 'base',
+                      });
                     })
                     .map((d) => (
                       <div

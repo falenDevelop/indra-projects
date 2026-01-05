@@ -56,12 +56,6 @@ export const getReportData = query({
               .filter((q) => q.eq(q.field('moduleId'), module._id))
               .collect();
 
-            // Debug: mostrar tareas en consola del servidor
-            console.log(
-              `Tareas para módulo ${module.nombre} (${module._id}):`,
-              tasks
-            );
-
             // Obtener los tipos de desarrollo
             const developmentTypes = await ctx.db
               .query('development_types')
@@ -132,6 +126,29 @@ export const getReportData = query({
               Object.values(averagesByType).reduce((a, b) => a + b, 0) /
               (Object.keys(averagesByType).length || 1);
 
+            // Calcular porcentaje sin defectos, tagging, test unitarios y test e2e
+            const averagesWithoutDefects = Object.entries(
+              averagesByType
+            ).filter(([typeName]) => {
+              const tn = String(typeName).toLowerCase();
+              return !(
+                tn.includes('defecto') ||
+                tn.includes('test unitario') ||
+                tn.includes('tes unitario') ||
+                tn.includes('tagging') ||
+                tn.includes('test e2e') ||
+                tn.includes('e2e')
+              );
+            });
+
+            const percentageWithoutDefects =
+              averagesWithoutDefects.length > 0
+                ? averagesWithoutDefects.reduce(
+                    (sum, [, value]) => sum + value,
+                    0
+                  ) / averagesWithoutDefects.length
+                : 0;
+
             // Obtener responsable focal
             const focalMember = teamMembers.find(
               (tm) => tm.moduleId === module._id && tm.isFocal
@@ -190,6 +207,7 @@ export const getReportData = query({
               responsableFocal: focalMember?.nombre || '',
               porcentajesPorTipo: averagesByType,
               porcentajeTotal: totalPercentage,
+              porcentajeSinDefectos: percentageWithoutDefects,
               actividadesAyer,
               tasks: tasks.map((t) => ({
                 _id: t._id,
