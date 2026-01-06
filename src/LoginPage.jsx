@@ -101,7 +101,7 @@ const LoginPage = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-4">
-                    <Form.Label>Número XP (Contraseña)</Form.Label>
+                    <Form.Label>Contraseña</Form.Label>
                     <Form.Control
                       type="password"
                       placeholder="Ej: 12345"
