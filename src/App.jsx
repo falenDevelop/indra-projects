@@ -19,8 +19,10 @@ import {
   Navbar,
   Button,
   Dropdown,
+  Modal,
+  ListGroup,
 } from 'react-bootstrap';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import {
   FaHome,
@@ -32,6 +34,7 @@ import {
   FaCheckCircle,
   FaFileAlt,
   FaSignOutAlt,
+  FaBell,
 } from 'react-icons/fa';
 import './App.css';
 
@@ -39,9 +42,29 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
   const { currentUser, logout, hasAccess, loading } = useAuth();
 
   const users = useQuery(api.users.list) || [];
+  const modules = useQuery(api.modules.list) || [];
+  const notifications =
+    useQuery(
+      api.defects.getNotificationsByUser,
+      currentUser?.xp ? { userXp: currentUser.xp } : 'skip'
+    ) || [];
+  const clearNotifications = useMutation(api.defects.clearNotifications);
+
+  const handleCloseNotifications = async () => {
+    if (notifications.length > 0) {
+      const defectIds = notifications.map((n) => n._id);
+      await clearNotifications({ defectIds });
+    }
+    setShowNotifications(false);
+  };
+
+  const getModuleName = (moduleId) => {
+    return modules.find((m) => m._id === moduleId)?.nombre || 'Desconocido';
+  };
 
   // Mostrar LoginPage si no hay usuario autenticado
   if (loading) {
@@ -207,13 +230,31 @@ function AppContent() {
                 Bienvenido a tu panel de control
               </p>
             </div>
-            <Badge
-              bg="success"
-              className="d-flex align-items-center gap-2 px-3 py-2"
-            >
-              <FaCheckCircle />
-              Conectado a Convex
-            </Badge>
+            <div className="d-flex align-items-center gap-3">
+              <Button
+                variant="outline-primary"
+                className="position-relative"
+                onClick={() => setShowNotifications(true)}
+              >
+                <FaBell size={20} />
+                {notifications.length > 0 && (
+                  <Badge
+                    bg="danger"
+                    pill
+                    className="position-absolute top-0 start-100 translate-middle"
+                  >
+                    {notifications.length}
+                  </Badge>
+                )}
+              </Button>
+              <Badge
+                bg="success"
+                className="d-flex align-items-center gap-2 px-3 py-2"
+              >
+                <FaCheckCircle />
+                Conectado a Convex
+              </Badge>
+            </div>
           </Container>
         </Navbar>
 
@@ -224,6 +265,78 @@ function AppContent() {
           </Container>
         </div>
       </div>
+
+      {/* Modal de Notificaciones */}
+      <Modal
+        show={showNotifications}
+        onHide={handleCloseNotifications}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaBell className="me-2" />
+            Notificaciones de Defectos
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {notifications.length === 0 ? (
+            <div className="text-center text-muted py-4">
+              <FaBell size={40} className="mb-3 opacity-50" />
+              <p>No hay notificaciones nuevas</p>
+            </div>
+          ) : (
+            <ListGroup>
+              {notifications.map((defect) => (
+                <ListGroup.Item key={defect._id}>
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div className="flex-grow-1">
+                      <div className="fw-bold mb-1">
+                        Defecto {defect.ticket}
+                      </div>
+                      <div className="small text-muted mb-2">
+                        Feature: {getModuleName(defect.moduleId)}
+                      </div>
+                      <div className="small">
+                        Se actualizó a estado:{' '}
+                        <Badge
+                          bg={
+                            defect.estado === 'Resuelto'
+                              ? 'success'
+                              : defect.estado === 'Pendiente'
+                                ? 'warning'
+                                : defect.estado === 'Bloqueante'
+                                  ? 'danger'
+                                  : 'info'
+                          }
+                        >
+                          {defect.estado}
+                        </Badge>
+                      </div>
+                      <div className="small text-muted mt-1">
+                        {defect.ultimaActualizacionEstado &&
+                          new Date(
+                            defect.ultimaActualizacionEstado
+                          ).toLocaleString('es-PE', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                </ListGroup.Item>
+              ))}
+            </ListGroup>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseNotifications}>
+            Cerrar y Marcar como Leído
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }

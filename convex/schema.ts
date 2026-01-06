@@ -90,5 +90,6 @@ export default defineSchema({
     creadoPor: v.optional(v.string()),
     creadoPorXp: v.optional(v.string()),
     creadoAt: v.number(),
+    ultimaActualizacionEstado: v.optional(v.number()),
   }),
 });
