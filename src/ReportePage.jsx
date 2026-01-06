@@ -22,6 +22,9 @@ const ReportePage = () => {
   const [showFocalModal, setShowFocalModal] = useState(false);
   const [currentUserName] = useState('');
 
+  // Estado para controlar qué tipos de desarrollo están visibles
+  const [visibleDevTypes, setVisibleDevTypes] = useState({});
+
   const getPercentVariant = (v) => {
     if (v === null || v === undefined) return 'danger';
     const s = String(v).replace(/[^0-9.-]/g, '');
@@ -185,6 +188,54 @@ const ReportePage = () => {
     return Array.from(types);
   }, [reportData]);
 
+  // Inicializar todos los tipos como visibles cuando cambien los developmentTypes
+  React.useEffect(() => {
+    if (developmentTypes.length > 0) {
+      const allVisible = {};
+      developmentTypes.forEach((type) => {
+        allVisible[type] = true;
+      });
+      setVisibleDevTypes(allVisible);
+    }
+  }, [developmentTypes]);
+
+  // Obtener solo los tipos visibles
+  const visibleTypes = useMemo(() => {
+    return developmentTypes.filter((type) => visibleDevTypes[type]);
+  }, [developmentTypes, visibleDevTypes]);
+
+  // Función para alternar la visibilidad de un tipo
+  const toggleDevType = (type) => {
+    setVisibleDevTypes((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }));
+  };
+
+  // Función para seleccionar/deseleccionar todos
+  const toggleAllDevTypes = () => {
+    const allSelected = developmentTypes.every((type) => visibleDevTypes[type]);
+    const newVisible = {};
+    developmentTypes.forEach((type) => {
+      newVisible[type] = !allSelected;
+    });
+    setVisibleDevTypes(newVisible);
+  };
+
+  // Función para calcular el porcentaje basado solo en los tipos visibles
+  const calculateVisiblePercentage = (module) => {
+    if (!module.porcentajesPorTipo || visibleTypes.length === 0) return 0;
+
+    const visiblePercentages = visibleTypes
+      .map((type) => module.porcentajesPorTipo[type])
+      .filter((p) => p !== null && p !== undefined);
+
+    if (visiblePercentages.length === 0) return 0;
+
+    const sum = visiblePercentages.reduce((a, b) => a + b, 0);
+    return sum / visiblePercentages.length;
+  };
+
   if (!blocksData) {
     return (
       <div className="min-vh-100 bg-light p-4">
@@ -261,6 +312,59 @@ const ReportePage = () => {
             {totalModules !== 1 ? 's' : ''} en total
           </div>
         )}
+
+        {/* Filtro de tipos de desarrollo */}
+        {developmentTypes.length > 0 && (
+          <div className="card mb-3">
+            <div className="card-body">
+              <h6 className="card-title mb-3">
+                <i className="bi bi-funnel"></i> Filtrar Columnas de Tipos de
+                Desarrollo
+              </h6>
+              <div className="d-flex flex-wrap gap-3 align-items-center">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="toggle-all"
+                    checked={developmentTypes.every(
+                      (type) => visibleDevTypes[type]
+                    )}
+                    onChange={toggleAllDevTypes}
+                  />
+                  <label
+                    className="form-check-label fw-bold"
+                    htmlFor="toggle-all"
+                  >
+                    Todos
+                  </label>
+                </div>
+                <div className="vr"></div>
+                {developmentTypes.map((type) => (
+                  <div key={type} className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={`type-${type}`}
+                      checked={visibleDevTypes[type] || false}
+                      onChange={() => toggleDevType(type)}
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor={`type-${type}`}
+                    >
+                      {type}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 small text-muted">
+                <i className="bi bi-info-circle"></i> Los porcentajes de avance
+                se calcularán solo con los tipos seleccionados
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabla de reporte */}
@@ -293,7 +397,7 @@ const ReportePage = () => {
                     Fecha Final
                   </th>
                   <th className="px-3 py-3 text-start fw-semibold">Estado</th>
-                  {developmentTypes.map((type) => (
+                  {visibleTypes.map((type) => (
                     <th
                       key={type}
                       className="px-2 py-3 text-center fw-semibold"
@@ -308,12 +412,6 @@ const ReportePage = () => {
                   >
                     % Avance Total
                   </th>
-                  <th
-                    className="px-3 py-3 text-center fw-semibold"
-                    style={{ width: '120px' }}
-                  >
-                    % Avance dev
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -327,7 +425,7 @@ const ReportePage = () => {
                     >
                       <td
                         className="px-3 py-3"
-                        colSpan={5 + developmentTypes.length + 2}
+                        colSpan={5 + visibleTypes.length + 2}
                       >
                         <div className="d-flex align-items-center gap-2 fw-bold">
                           {expandedTeams[team.nombre] ? (
@@ -458,7 +556,7 @@ const ReportePage = () => {
                               {module.estado}
                             </span>
                           </td>
-                          {developmentTypes.map((type) => {
+                          {visibleTypes.map((type) => {
                             const hasType =
                               module.porcentajesPorTipo &&
                               Object.prototype.hasOwnProperty.call(
@@ -502,62 +600,42 @@ const ReportePage = () => {
                             style={{ cursor: 'pointer' }}
                             title="Ver todas las actividades"
                           >
-                            <div className="d-flex align-items-center justify-content-center gap-2">
-                              <div
-                                className="progress flex-grow-1"
-                                style={{ maxWidth: '60px', height: '8px' }}
-                              >
-                                <div
-                                  className={`progress-bar ${
-                                    module.porcentajeTotal >= 75
-                                      ? 'bg-success'
-                                      : module.porcentajeTotal >= 50
-                                        ? 'bg-primary'
-                                        : module.porcentajeTotal >= 25
-                                          ? 'bg-warning'
-                                          : 'bg-danger'
-                                  }`}
-                                  style={{
-                                    width: `${module.porcentajeTotal}%`,
-                                  }}
-                                />
-                              </div>
-                              <span
-                                className="fw-bold text-dark small"
-                                style={{ minWidth: '50px', textAlign: 'right' }}
-                              >
-                                {module.porcentajeTotal.toFixed(1)}%
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-center">
-                            <div className="d-flex align-items-center justify-content-center gap-2">
-                              <div
-                                className="progress flex-grow-1"
-                                style={{ maxWidth: '60px', height: '8px' }}
-                              >
-                                <div
-                                  className={`progress-bar ${
-                                    module.porcentajeSinDefectos >= 75
-                                      ? 'bg-success'
-                                      : module.porcentajeSinDefectos >= 50
-                                        ? 'bg-primary'
-                                        : module.porcentajeSinDefectos >= 25
-                                          ? 'bg-warning'
-                                          : 'bg-danger'
-                                  }`}
-                                  style={{
-                                    width: `${module.porcentajeSinDefectos}%`,
-                                  }}
-                                />
-                              </div>
-                              <span
-                                className="fw-bold text-dark small"
-                                style={{ minWidth: '50px', textAlign: 'right' }}
-                              >
-                                {module.porcentajeSinDefectos.toFixed(1)}%
-                              </span>
-                            </div>
+                            {(() => {
+                              const visiblePercentage =
+                                calculateVisiblePercentage(module);
+                              return (
+                                <div className="d-flex align-items-center justify-content-center gap-2">
+                                  <div
+                                    className="progress flex-grow-1"
+                                    style={{ maxWidth: '60px', height: '8px' }}
+                                  >
+                                    <div
+                                      className={`progress-bar ${
+                                        visiblePercentage >= 75
+                                          ? 'bg-success'
+                                          : visiblePercentage >= 50
+                                            ? 'bg-primary'
+                                            : visiblePercentage >= 25
+                                              ? 'bg-warning'
+                                              : 'bg-danger'
+                                      }`}
+                                      style={{
+                                        width: `${visiblePercentage}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span
+                                    className="fw-bold text-dark small"
+                                    style={{
+                                      minWidth: '50px',
+                                      textAlign: 'right',
+                                    }}
+                                  >
+                                    {visiblePercentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       ))}
@@ -594,55 +672,92 @@ const ReportePage = () => {
                   No hay defectos registrados para este módulo.
                 </div>
               ) : (
-                <div className="list-group">
-                  {[...defectsForModule]
-                    .sort((a, b) => {
-                      const ea = String(a.estado || '').toLowerCase();
-                      const eb = String(b.estado || '').toLowerCase();
-                      return ea.localeCompare(eb, 'es', {
-                        sensitivity: 'base',
-                      });
-                    })
-                    .map((d) => (
-                      <div
-                        key={d.id}
-                        className="list-group-item d-flex justify-content-between align-items-start"
-                      >
-                        <div>
-                          <div className="fw-bold d-flex align-items-center gap-2">
-                            <span
-                              className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
-                            >
-                              {d.estado}
-                            </span>
-                            <a
-                              href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {d.ticket}
-                            </a>
+                <>
+                  {/* Sección de conteo por estado */}
+                  {(() => {
+                    const countByEstado = {};
+                    defectsForModule.forEach((d) => {
+                      const estado = d.estado || 'Sin Estado';
+                      countByEstado[estado] = (countByEstado[estado] || 0) + 1;
+                    });
+
+                    return (
+                      <div className="card mb-3 bg-light">
+                        <div className="card-body">
+                          <h6 className="card-title mb-3">
+                            Resumen por Estado
+                          </h6>
+                          <div className="d-flex flex-wrap gap-2">
+                            {Object.entries(countByEstado)
+                              .sort(([a], [b]) => a.localeCompare(b, 'es'))
+                              .map(([estado, count]) => (
+                                <span
+                                  key={estado}
+                                  className={`badge bg-${getDefectBadgeVariant(estado)} text-white py-2 px-3`}
+                                >
+                                  {estado}: {count}
+                                </span>
+                              ))}
                           </div>
-                          {d.data && (
-                            <div className="small text-primary">
-                              Data: {d.data}
-                            </div>
-                          )}
-                          <div className="small">{d.comentario}</div>
-                          <div className="small text-muted mt-1">
-                            Creado por: {d.creadoPor || '-'}
+                          <div className="mt-2 text-end">
+                            <strong>Total: {defectsForModule.length}</strong>
                           </div>
-                        </div>
-                        <div className="text-end">
-                          <small className="text-muted">
-                            {d.creadoAt
-                              ? new Date(d.creadoAt).toLocaleString('es-PE')
-                              : ''}
-                          </small>
                         </div>
                       </div>
-                    ))}
-                </div>
+                    );
+                  })()}
+
+                  {/* Listado de defectos ordenado por estado */}
+                  <div className="list-group">
+                    {[...defectsForModule]
+                      .sort((a, b) => {
+                        const ea = String(a.estado || '').toLowerCase();
+                        const eb = String(b.estado || '').toLowerCase();
+                        return ea.localeCompare(eb, 'es', {
+                          sensitivity: 'base',
+                        });
+                      })
+                      .map((d) => (
+                        <div
+                          key={d.id}
+                          className="list-group-item d-flex justify-content-between align-items-start"
+                        >
+                          <div>
+                            <div className="fw-bold d-flex align-items-center gap-2">
+                              <span
+                                className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
+                              >
+                                {d.estado}
+                              </span>
+                              <a
+                                href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {d.ticket}
+                              </a>
+                            </div>
+                            {d.data && (
+                              <div className="small text-primary">
+                                Data: {d.data}
+                              </div>
+                            )}
+                            <div className="small">{d.comentario}</div>
+                            <div className="small text-muted mt-1">
+                              Creado por: {d.creadoPor || '-'}
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <small className="text-muted">
+                              {d.creadoAt
+                                ? new Date(d.creadoAt).toLocaleString('es-PE')
+                                : ''}
+                            </small>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </>
               )}
             </div>
           ) : moduleActivities ? (

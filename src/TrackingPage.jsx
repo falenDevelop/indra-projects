@@ -31,24 +31,13 @@ const TrackingPage = () => {
   const { currentUser } = useAuth();
   const [showDefectsModal, setShowDefectsModal] = useState(false);
   const [selectedDefectModuleId, setSelectedDefectModuleId] = useState(null);
-  const [defectForm, setDefectForm] = useState({
-    ticket: '',
-    data: '',
-    comentario: '',
-    estado: 'Pendiente',
-  });
-  const [editingDefectId, setEditingDefectId] = useState(null);
-  const [showBulkDefects, setShowBulkDefects] = useState(false);
-  const [bulkDefectText, setBulkDefectText] = useState('');
   // Convex-backed defects (loaded per selected defect module)
   const defectsQuery = useQuery(
     api.defects.listByModule,
     selectedDefectModuleId ? { moduleId: selectedDefectModuleId } : 'skip'
   );
 
-  const createDefect = useMutation(api.defects.create);
   const updateDefect = useMutation(api.defects.update);
-  const removeDefect = useMutation(api.defects.remove);
 
   const DEFECT_STATES = [
     'Pendiente',
@@ -62,120 +51,16 @@ const TrackingPage = () => {
     'Otro',
   ];
 
-  const isQAorLeader = () =>
-    currentUser?.perfil === 'QA' || currentUser?.perfil === 'Lider Tecnico';
-
   // local persistence removed — use Convex mutations instead
 
   const handleShowDefects = (moduleId) => {
     setSelectedDefectModuleId(moduleId);
-    setEditingDefectId(null);
-    setDefectForm({
-      ticket: '',
-      data: '',
-      comentario: '',
-      estado: 'Pendiente',
-    });
     setShowDefectsModal(true);
-  };
-
-  const handleBulkSaveDefects = async () => {
-    if (!bulkDefectText.trim() || !selectedDefectModuleId) return;
-    const lines = bulkDefectText
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
-    for (const line of lines) {
-      // formato: ticket: data, comentario
-      const idx = line.indexOf(':');
-      if (idx === -1) continue;
-      const ticket = line.slice(0, idx).trim();
-      const rest = line.slice(idx + 1).trim();
-      let data = '';
-      let comentario = '';
-      const comma = rest.indexOf(',');
-      if (comma === -1) {
-        data = rest;
-      } else {
-        data = rest.slice(0, comma).trim();
-        comentario = rest.slice(comma + 1).trim();
-      }
-      try {
-        await createDefect({
-          moduleId: selectedDefectModuleId,
-          ticket,
-          data,
-          comentario,
-          estado: 'Resuelto',
-          creadoPor: currentUser?.nombre || 'Usuario desconocido',
-          creadoPorXp: currentUser?.xp || 'N/A',
-          creadoAt: Date.now(),
-        });
-      } catch (err) {
-        console.error('Error creating defect (bulk):', err);
-      }
-    }
-    setBulkDefectText('');
-    setShowBulkDefects(false);
   };
 
   const handleCloseDefects = () => {
     setShowDefectsModal(false);
     setSelectedDefectModuleId(null);
-  };
-
-  const handleSaveDefect = (e) => {
-    e.preventDefault();
-    if (!selectedDefectModuleId) return;
-    (async () => {
-      try {
-        if (editingDefectId) {
-          await updateDefect({ id: editingDefectId, ...defectForm });
-        } else {
-          await createDefect({
-            moduleId: selectedDefectModuleId,
-            ...defectForm,
-            creadoPor: currentUser?.nombre || 'Usuario desconocido',
-            creadoPorXp: currentUser?.xp || 'N/A',
-            creadoAt: Date.now(),
-          });
-        }
-      } catch (err) {
-        console.error('Error saving defect:', err);
-        alert('Error al guardar el defecto');
-      } finally {
-        setEditingDefectId(null);
-        setDefectForm({
-          ticket: '',
-          data: '',
-          comentario: '',
-          estado: 'Pendiente',
-        });
-      }
-    })();
-  };
-
-  const handleEditDefect = (defect) => {
-    setEditingDefectId(defect.id);
-    setDefectForm({
-      ticket: defect.ticket,
-      data: defect.data ?? defect['data'] ?? '',
-      comentario: defect.comentario,
-      estado: defect.estado,
-    });
-  };
-
-  const handleDeleteDefect = (id) => {
-    if (!selectedDefectModuleId) return;
-    if (!window.confirm('¿Eliminar este defecto?')) return;
-    (async () => {
-      try {
-        await removeDefect({ id });
-      } catch (err) {
-        console.error('Error removing defect:', err);
-        alert('Error al eliminar el defecto');
-      }
-    })();
   };
 
   const handleChangeDefectState = (defectObj, estado) => {
@@ -749,217 +634,141 @@ const TrackingPage = () => {
         </Modal.Header>
         <Modal.Body>
           <div className="mb-3">
-            {!isQAorLeader() ? (
-              <div className="alert alert-info">
-                Solo lectura: no tiene permisos para crear/editar defectos.
-              </div>
-            ) : (
-              <>
-                <div className="d-flex justify-content-end mb-2">
-                  <Button
-                    variant={
-                      showBulkDefects ? 'secondary' : 'outline-secondary'
-                    }
-                    size="sm"
-                    onClick={() => setShowBulkDefects((b) => !b)}
-                  >
-                    {showBulkDefects
-                      ? 'Volver a modo individual'
-                      : 'Carga Masiva'}
-                  </Button>
-                </div>
-
-                {showBulkDefects ? (
-                  <>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Lista de defectos (una por línea)</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={8}
-                        value={bulkDefectText}
-                        onChange={(e) => setBulkDefectText(e.target.value)}
-                        placeholder={
-                          'Formato: TICKET: data, comentario\nEjemplo:\nGLOMOPE-103933: L48100039 / Nttdata-01 / 4042938000719123 / PIN 6977 / CVV 321, Textos incorrectos y nombre del botón incorrecto (Diseño)'
-                        }
-                      />
-                    </Form.Group>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="primary"
-                        disabled={!bulkDefectText.trim()}
-                        onClick={handleBulkSaveDefects}
-                      >
-                        Guardar defectos masivos
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => {
-                          setShowBulkDefects(false);
-                          setBulkDefectText('');
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <Form onSubmit={handleSaveDefect} className="mb-3">
-                    <Row>
-                      <Col md={4}>
-                        <Form.Group className="mb-2">
-                          <Form.Label>Ticket</Form.Label>
-                          <Form.Control
-                            value={defectForm.ticket}
-                            onChange={(e) =>
-                              setDefectForm((f) => ({
-                                ...f,
-                                ticket: e.target.value,
-                              }))
-                            }
-                            required
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={4}>
-                        <Form.Group className="mb-2">
-                          <Form.Label>Estado</Form.Label>
-                          <Form.Select
-                            value={defectForm.estado}
-                            onChange={(e) =>
-                              setDefectForm((f) => ({
-                                ...f,
-                                estado: e.target.value,
-                              }))
-                            }
-                          >
-                            {DEFECT_STATES.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
-                              </option>
-                            ))}
-                          </Form.Select>
-                        </Form.Group>
-                      </Col>
-                    </Row>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Data</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={defectForm.data}
-                        onChange={(e) =>
-                          setDefectForm((f) => ({
-                            ...f,
-                            data: e.target.value,
-                          }))
-                        }
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Comentario</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={2}
-                        value={defectForm.comentario}
-                        onChange={(e) =>
-                          setDefectForm((f) => ({
-                            ...f,
-                            comentario: e.target.value,
-                          }))
-                        }
-                      />
-                    </Form.Group>
-                    <div className="d-flex gap-2">
-                      <Button type="submit" variant="primary">
-                        {editingDefectId ? 'Guardar' : 'Agregar'}
-                      </Button>
-                      {editingDefectId && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setEditingDefectId(null);
-                            setDefectForm({
-                              ticket: '',
-                              comentario: '',
-                              estado: 'Pendiente',
-                            });
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                    </div>
-                  </Form>
-                )}
-              </>
-            )}
-
             <h6>Listado de Defectos</h6>
             {!selectedDefectModuleId || !(defectsQuery || []).length ? (
               <div className="text-muted">
                 No hay defectos registrados para este módulo.
               </div>
             ) : (
-              <div className="list-group">
-                {(defectsQuery || []).map((d) => (
-                  <div
-                    key={d.id}
-                    className="list-group-item d-flex justify-content-between align-items-start"
-                  >
-                    <div>
-                      <div className="fw-bold">
-                        {d.ticket}{' '}
-                        <small className="text-muted">{d.estado}</small>
-                      </div>
-                      {d.data && (
-                        <div className="small text-primary">Data: {d.data}</div>
-                      )}
-                      <div className="small">{d.comentario}</div>
-                      <div className="small text-muted mt-1">
-                        Creado por: {d.creadoPor || '-'}
-                      </div>
-                    </div>
-                    <div className="text-end">
-                      <Form.Select
-                        size="sm"
-                        value={d.estado}
-                        onChange={(e) =>
-                          handleChangeDefectState(d, e.target.value)
-                        }
-                        style={{
-                          width: '160px',
-                          display: 'inline-block',
-                          marginRight: 8,
-                        }}
-                      >
-                        {DEFECT_STATES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <div className="mt-2">
-                        <Button
-                          size="sm"
-                          variant="warning"
-                          className="me-1"
-                          onClick={() => {
-                            handleEditDefect({ ...d, id: d.id || d._id });
-                          }}
-                        >
-                          <FaEdit />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => handleDeleteDefect(d.id || d._id)}
-                        >
-                          <FaTrash />
-                        </Button>
+              <>
+                {/* Sección de conteo por estado */}
+                {(() => {
+                  const getDefectBadgeVariant = (estado) => {
+                    if (!estado) return 'secondary';
+                    const s = String(estado).toLowerCase();
+                    if (s === 'resuelto') return 'success';
+                    if (s === 'descartado') return 'secondary';
+                    if (s === 'bloqueante') return 'danger';
+                    if (s === 'observado') return 'warning';
+                    if (s === 'validar qa' || s === 'validar QA'.toLowerCase())
+                      return 'info';
+                    if (s === 'procesos' || s === 'validacion banco')
+                      return 'primary';
+                    if (s === 'pendiente') return 'secondary';
+                    return 'dark';
+                  };
+
+                  const countByEstado = {};
+                  defectsQuery.forEach((d) => {
+                    const estado = d.estado || 'Sin Estado';
+                    countByEstado[estado] = (countByEstado[estado] || 0) + 1;
+                  });
+
+                  return (
+                    <div className="card mb-3 bg-light">
+                      <div className="card-body">
+                        <h6 className="card-title mb-3">Resumen por Estado</h6>
+                        <div className="d-flex flex-wrap gap-2">
+                          {Object.entries(countByEstado)
+                            .sort(([a], [b]) => a.localeCompare(b, 'es'))
+                            .map(([estado, count]) => (
+                              <span
+                                key={estado}
+                                className={`badge bg-${getDefectBadgeVariant(estado)} text-white py-2 px-3`}
+                              >
+                                {estado}: {count}
+                              </span>
+                            ))}
+                        </div>
+                        <div className="mt-2 text-end">
+                          <strong>Total: {defectsQuery.length}</strong>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  );
+                })()}
+
+                <div className="list-group">
+                  {(defectsQuery || [])
+                    .sort((a, b) => {
+                      const ea = String(a.estado || '').toLowerCase();
+                      const eb = String(b.estado || '').toLowerCase();
+                      return ea.localeCompare(eb, 'es', {
+                        sensitivity: 'base',
+                      });
+                    })
+                    .map((d) => {
+                      const getDefectBadgeVariant = (estado) => {
+                        if (!estado) return 'secondary';
+                        const s = String(estado).toLowerCase();
+                        if (s === 'resuelto') return 'success';
+                        if (s === 'descartado') return 'secondary';
+                        if (s === 'bloqueante') return 'danger';
+                        if (s === 'observado') return 'warning';
+                        if (
+                          s === 'validar qa' ||
+                          s === 'validar QA'.toLowerCase()
+                        )
+                          return 'info';
+                        if (s === 'procesos' || s === 'validacion banco')
+                          return 'primary';
+                        if (s === 'pendiente') return 'secondary';
+                        return 'dark';
+                      };
+
+                      return (
+                        <div
+                          key={d.id}
+                          className="list-group-item d-flex justify-content-between align-items-start"
+                        >
+                          <div>
+                            <div className="fw-bold d-flex align-items-center gap-2">
+                              <span
+                                className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
+                              >
+                                {d.estado}
+                              </span>
+                              <a
+                                href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {d.ticket}
+                              </a>
+                            </div>
+                            {d.data && (
+                              <div className="small text-primary">
+                                Data: {d.data}
+                              </div>
+                            )}
+                            <div className="small">{d.comentario}</div>
+                            <div className="small text-muted mt-1">
+                              Creado por: {d.creadoPor || '-'}
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <Form.Select
+                              size="sm"
+                              value={d.estado}
+                              onChange={(e) =>
+                                handleChangeDefectState(d, e.target.value)
+                              }
+                              style={{
+                                width: '160px',
+                              }}
+                            >
+                              {DEFECT_STATES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </Form.Select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </>
             )}
           </div>
         </Modal.Body>

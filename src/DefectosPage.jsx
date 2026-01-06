@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-bootstrap';
 import { useQuery, useMutation } from 'convex/react';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye } from 'react-icons/fa';
 import { useAuth } from './useAuth';
 import { api } from '../convex/_generated/api';
 
@@ -31,17 +31,30 @@ const DefectosPage = () => {
     huaweiEjecutadas: 0,
   });
 
-  const estados = useMemo(() => {
-    const s = new Set(defects.map((d) => d.estado));
-    return Array.from(s).filter(Boolean);
-  }, [defects]);
+  const estados = [
+    'Pendiente',
+    'Validar QA',
+    'Procesos',
+    'Validacion Banco',
+    'Observado',
+    'Bloqueante',
+    'Resuelto',
+    'Descartado',
+    'Otro',
+  ];
 
   const filtered = useMemo(() => {
-    return defects.filter((d) => {
-      if (moduleFilter && d.moduleId !== moduleFilter) return false;
-      if (estadoFilter && d.estado !== estadoFilter) return false;
-      return true;
-    });
+    return defects
+      .filter((d) => {
+        if (moduleFilter && d.moduleId !== moduleFilter) return false;
+        if (estadoFilter && d.estado !== estadoFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const ea = String(a.estado || '').toLowerCase();
+        const eb = String(b.estado || '').toLowerCase();
+        return ea.localeCompare(eb, 'es', { sensitivity: 'base' });
+      });
   }, [defects, moduleFilter, estadoFilter]);
 
   const getModuleName = (moduleId) => {
@@ -156,10 +169,14 @@ const DefectosPage = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const removeDefect = useMutation(api.defects.remove);
   const [editingId, setEditingId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedDefect, setSelectedDefect] = useState(null);
   const { currentUser } = useAuth();
   const createDefect = useMutation(api.defects.create);
   const updateModule = useMutation(api.modules.update);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [bulkDefectsText, setBulkDefectsText] = useState('');
   const [newDefect, setNewDefect] = useState({
     moduleId: '',
     ticket: '',
@@ -215,6 +232,68 @@ const DefectosPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+
+    // Modo carga masiva
+    if (isBulkMode) {
+      if (!newDefect.moduleId || !bulkDefectsText.trim()) {
+        alert('Seleccione feature y agregue los defectos');
+        return;
+      }
+
+      const lines = bulkDefectsText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const line of lines) {
+        try {
+          // Parsear: TICKET, DATA, COMENTARIO
+          const parts = line.split(',').map((p) => p.trim());
+          if (parts.length < 2) {
+            console.warn('Línea con formato incorrecto:', line);
+            errorCount++;
+            continue;
+          }
+
+          const ticket = parts[0];
+          const data = parts[1];
+          const comentario = parts.slice(2).join(', ');
+
+          await createDefect({
+            moduleId: newDefect.moduleId,
+            ticket,
+            data,
+            comentario,
+            estado: newDefect.estado || 'Pendiente',
+            creadoPor: currentUser?.nombre || 'Usuario',
+            creadoPorXp: currentUser?.xp || 'N/A',
+            creadoAt: Date.now(),
+          });
+          successCount++;
+        } catch (err) {
+          console.error('Error creando defecto:', err);
+          errorCount++;
+        }
+      }
+
+      alert(`Defectos creados: ${successCount}\nErrores: ${errorCount}`);
+      setShowCreateModal(false);
+      setIsBulkMode(false);
+      setBulkDefectsText('');
+      setNewDefect({
+        moduleId: '',
+        ticket: '',
+        data: '',
+        comentario: '',
+        estado: estados[0] || '',
+      });
+      return;
+    }
+
+    // Modo individual
     if (!newDefect.moduleId || !newDefect.ticket) {
       alert('Seleccione feature y escriba el ticket');
       return;
@@ -276,38 +355,14 @@ const DefectosPage = () => {
   return (
     <div>
       <h1>Defectos</h1>
-
-      <Card className="mb-3">
-        <Card.Body>
-          <Row className="align-items-center">
-            <Col md={3}>
-              <div className="small text-muted">Total defectos registrados</div>
-              <h4 className="mb-0">{totalDefects}</h4>
-            </Col>
-            <Col>
-              <div className="small text-muted mb-2">Defectos por estado</div>
-              <div className="d-flex flex-wrap gap-2">
-                {Object.entries(totalsByEstado).map(([estado, cnt]) => (
-                  <Badge
-                    key={estado}
-                    bg={estadoVariant(estado)}
-                    className="py-2 px-3"
-                  >
-                    {estado}: {cnt}
-                  </Badge>
-                ))}
-              </div>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-
       <Card className="mb-3">
         <Card.Body>
           <Row className="mb-4">
             <Col>
               <h5 className="mb-3">
-                {moduleFilter ? `Pruebas del Feature: ${getModuleName(moduleFilter)}` : 'Resumen Global de Pruebas'}
+                {moduleFilter
+                  ? `Pruebas del Feature: ${getModuleName(moduleFilter)}`
+                  : 'Resumen Global de Pruebas'}
               </h5>
               <Row className="text-center">
                 <Col md={3}>
@@ -402,10 +457,7 @@ const DefectosPage = () => {
                         : 0}
                       %
                     </strong>
-                    <div
-                      className="progress mt-2"
-                      style={{ height: '8px' }}
-                    >
+                    <div className="progress mt-2" style={{ height: '8px' }}>
                       <div
                         className="progress-bar bg-success"
                         style={{
@@ -451,17 +503,13 @@ const DefectosPage = () => {
                     <strong className="ms-2 text-success">
                       {totalPruebas.ios > 0
                         ? (
-                            (totalPruebas.iosEjecutadas /
-                              totalPruebas.ios) *
+                            (totalPruebas.iosEjecutadas / totalPruebas.ios) *
                             100
                           ).toFixed(1)
                         : 0}
                       %
                     </strong>
-                    <div
-                      className="progress mt-2"
-                      style={{ height: '8px' }}
-                    >
+                    <div className="progress mt-2" style={{ height: '8px' }}>
                       <div
                         className="progress-bar bg-primary"
                         style={{
@@ -514,10 +562,7 @@ const DefectosPage = () => {
                         : 0}
                       %
                     </strong>
-                    <div
-                      className="progress mt-2"
-                      style={{ height: '8px' }}
-                    >
+                    <div className="progress mt-2" style={{ height: '8px' }}>
                       <div
                         className="progress-bar bg-danger"
                         style={{
@@ -540,10 +585,7 @@ const DefectosPage = () => {
           {moduleFilter && (
             <Row className="mt-3">
               <Col className="text-center">
-                <Button
-                  variant="outline-primary"
-                  onClick={handleEditPruebas}
-                >
+                <Button variant="outline-primary" onClick={handleEditPruebas}>
                   Editar pruebas del feature
                 </Button>
               </Col>
@@ -590,6 +632,31 @@ const DefectosPage = () => {
         </Row>
       </Form>
 
+      <Card className="mb-3">
+        <Card.Body>
+          <Row className="align-items-center">
+            <Col md={3}>
+              <div className="small text-muted">Total defectos registrados</div>
+              <h4 className="mb-0">{totalDefects}</h4>
+            </Col>
+            <Col>
+              <div className="small text-muted mb-2">Defectos por estado</div>
+              <div className="d-flex flex-wrap gap-2">
+                {Object.entries(totalsByEstado).map(([estado, cnt]) => (
+                  <Badge
+                    key={estado}
+                    bg={estadoVariant(estado)}
+                    className="py-2 px-3"
+                  >
+                    {estado}: {cnt}
+                  </Badge>
+                ))}
+              </div>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
       <div className="mb-3 d-flex justify-content-end">
         <Button
           onClick={() => {
@@ -613,6 +680,8 @@ const DefectosPage = () => {
         onHide={() => {
           setShowCreateModal(false);
           setEditingId(null);
+          setIsBulkMode(false);
+          setBulkDefectsText('');
           setNewDefect({
             moduleId: '',
             ticket: '',
@@ -627,6 +696,18 @@ const DefectosPage = () => {
             <Modal.Title>Registrar nuevo defecto</Modal.Title>
           </Modal.Header>
           <Modal.Body>
+            {!editingId && (
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="switch"
+                  id="bulk-mode-switch"
+                  label="Carga Masiva"
+                  checked={isBulkMode}
+                  onChange={(e) => setIsBulkMode(e.target.checked)}
+                />
+              </Form.Group>
+            )}
+
             <Form.Group className="mb-2">
               <Form.Label>Feature</Form.Label>
               <Form.Select
@@ -645,54 +726,98 @@ const DefectosPage = () => {
               </Form.Select>
             </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Ticket</Form.Label>
-              <Form.Control
-                value={newDefect.ticket}
-                onChange={(e) =>
-                  setNewDefect((s) => ({ ...s, ticket: e.target.value }))
-                }
-                required
-              />
-            </Form.Group>
+            {!isBulkMode ? (
+              <>
+                <Form.Group className="mb-2">
+                  <Form.Label>Ticket</Form.Label>
+                  <Form.Control
+                    value={newDefect.ticket}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({ ...s, ticket: e.target.value }))
+                    }
+                    required
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Estado</Form.Label>
-              <Form.Select
-                value={newDefect.estado}
-                onChange={(e) =>
-                  setNewDefect((s) => ({ ...s, estado: e.target.value }))
-                }
-              >
-                {estados.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label>Estado</Form.Label>
+                  <Form.Select
+                    value={newDefect.estado}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({ ...s, estado: e.target.value }))
+                    }
+                  >
+                    {estados.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Data</Form.Label>
-              <Form.Control
-                value={newDefect.data}
-                onChange={(e) =>
-                  setNewDefect((s) => ({ ...s, data: e.target.value }))
-                }
-              />
-            </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label>Data</Form.Label>
+                  <Form.Control
+                    value={newDefect.data}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({ ...s, data: e.target.value }))
+                    }
+                  />
+                </Form.Group>
 
-            <Form.Group className="mb-2">
-              <Form.Label>Observación</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={newDefect.comentario}
-                onChange={(e) =>
-                  setNewDefect((s) => ({ ...s, comentario: e.target.value }))
-                }
-              />
-            </Form.Group>
+                <Form.Group className="mb-2">
+                  <Form.Label>Observación</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={newDefect.comentario}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({
+                        ...s,
+                        comentario: e.target.value,
+                      }))
+                    }
+                  />
+                </Form.Group>
+              </>
+            ) : (
+              <>
+                <Form.Group className="mb-2">
+                  <Form.Label>Estado (Para todos los defectos)</Form.Label>
+                  <Form.Select
+                    value={newDefect.estado}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({ ...s, estado: e.target.value }))
+                    }
+                  >
+                    {estados.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+
+                <Form.Group className="mb-2">
+                  <Form.Label>Defectos (uno por línea)</Form.Label>
+                  <Form.Text className="d-block mb-2 text-muted">
+                    Formato: TICKET, DATA, OBSERVACIÓN
+                    <br />
+                    Ejemplo:
+                    <br />
+                    JIRA-123, 2024-01-15, Error en validación
+                  </Form.Text>
+                  <Form.Control
+                    as="textarea"
+                    rows={10}
+                    placeholder="JIRA-123, 2024-01-15, Error en validación&#10;JIRA-124, 2024-01-16, Problema de performance"
+                    value={bulkDefectsText}
+                    onChange={(e) => setBulkDefectsText(e.target.value)}
+                    required
+                  />
+                </Form.Group>
+              </>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button
@@ -700,6 +825,8 @@ const DefectosPage = () => {
               onClick={() => {
                 setShowCreateModal(false);
                 setEditingId(null);
+                setIsBulkMode(false);
+                setBulkDefectsText('');
                 setNewDefect({
                   moduleId: '',
                   ticket: '',
@@ -711,7 +838,9 @@ const DefectosPage = () => {
             >
               Cancelar
             </Button>
-            <Button type="submit">{editingId ? 'Guardar' : 'Crear'}</Button>
+            <Button type="submit">
+              {isBulkMode ? 'Crear Defectos' : editingId ? 'Guardar' : 'Crear'}
+            </Button>
           </Modal.Footer>
         </Form>
       </Modal>
@@ -846,9 +975,8 @@ const DefectosPage = () => {
           <col style={{ width: '200px' }} />
           <col style={{ width: '200px' }} />
           <col />
-          <col style={{ width: '150px' }} />
           <col style={{ width: '250px' }} />
-          <col />
+          <col style={{ width: '60px' }} />
         </colgroup>
         <thead>
           <tr>
@@ -856,9 +984,7 @@ const DefectosPage = () => {
             <th>Ticket</th>
             <th>Data</th>
             <th>Estado</th>
-            <th>Creado Por</th>
-            <th>Comentario</th>
-            <th style={{ width: '90px' }}>Acciones</th>
+            <th style={{ width: '60px' }}>Ver</th>
           </tr>
         </thead>
         <tbody>
@@ -876,48 +1002,174 @@ const DefectosPage = () => {
               </td>
               <td>{d.data ?? '—'}</td>
               <td>
-                <Form.Select
-                  value={d.estado}
-                  onChange={(e) => handleEstadoChange(d, e.target.value)}
-                  disabled={updatingId === (d._id || d.id)}
-                  size="sm"
-                >
-                  {estados.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </Form.Select>
+                <div className="d-flex align-items-center gap-2">
+                  <span
+                    className={`badge bg-${estadoVariant(d.estado)} text-white`}
+                  >
+                    {d.estado}
+                  </span>
+                  <Form.Select
+                    value={d.estado}
+                    onChange={(e) => handleEstadoChange(d, e.target.value)}
+                    disabled={updatingId === (d._id || d.id)}
+                    size="sm"
+                    style={{ width: '140px' }}
+                  >
+                    {estados.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </div>
                 {updatingId === (d._id || d.id) && (
                   <div className="mt-1">
                     <Spinner animation="border" size="sm" />
                   </div>
                 )}
               </td>
-              <td>{d.creadoPor ?? '—'}</td>
-              <td>{d.comentario ?? '—'}</td>
               <td className="text-center">
                 <Button
                   variant="link"
-                  className="p-0 me-2 text-primary"
-                  onClick={() => handleEditClick(d)}
-                  aria-label="Editar"
+                  className="p-0 text-info"
+                  onClick={() => {
+                    setSelectedDefect(d);
+                    setShowDetailModal(true);
+                  }}
+                  aria-label="Ver detalle"
                 >
-                  <FaEdit />
-                </Button>
-                <Button
-                  variant="link"
-                  className="p-0 text-danger"
-                  onClick={() => handleDeleteClick(d)}
-                  aria-label="Eliminar"
-                >
-                  <FaTrash />
+                  <FaEye size={18} />
                 </Button>
               </td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      {/* Modal de Detalle */}
+      <Modal
+        show={showDetailModal}
+        onHide={() => {
+          setShowDetailModal(false);
+          setSelectedDefect(null);
+        }}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Detalle del Defecto</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedDefect && (
+            <div>
+              <Row className="mb-3">
+                <Col md={6}>
+                  <strong>Feature:</strong>
+                  <div className="mt-1">
+                    {getModuleName(selectedDefect.moduleId)}
+                  </div>
+                </Col>
+                <Col md={6}>
+                  <strong>Ticket:</strong>
+                  <div className="mt-1">
+                    <a
+                      href={`https://jira.globaldevtools.bbva.com/browse/${selectedDefect.ticket}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {selectedDefect.ticket}
+                    </a>
+                  </div>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={12}>
+                  <strong>Estado:</strong>
+                  <div className="mt-1">
+                    <Badge
+                      bg={estadoVariant(selectedDefect.estado)}
+                      className="py-2 px-3"
+                    >
+                      {selectedDefect.estado}
+                    </Badge>
+                  </div>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={12}>
+                  <strong>Data:</strong>
+                  <div className="mt-1">{selectedDefect.data ?? '—'}</div>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={12}>
+                  <strong>Comentario:</strong>
+                  <div className="mt-1">{selectedDefect.comentario ?? '—'}</div>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={6}>
+                  <strong>Creado Por:</strong>
+                  <div className="mt-1">{selectedDefect.creadoPor ?? '—'}</div>
+                </Col>
+                <Col md={6}>
+                  <strong>XP:</strong>
+                  <div className="mt-1">
+                    {selectedDefect.creadoPorXp ?? '—'}
+                  </div>
+                </Col>
+              </Row>
+
+              <Row className="mb-3">
+                <Col md={12}>
+                  <strong>Fecha de Creación:</strong>
+                  <div className="mt-1">
+                    {selectedDefect.creadoAt
+                      ? new Date(selectedDefect.creadoAt).toLocaleString(
+                          'es-PE'
+                        )
+                      : '—'}
+                  </div>
+                </Col>
+              </Row>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowDetailModal(false);
+              handleEditClick(selectedDefect);
+            }}
+          >
+            <FaEdit className="me-2" />
+            Editar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              setShowDetailModal(false);
+              handleDeleteClick(selectedDefect);
+            }}
+          >
+            <FaTrash className="me-2" />
+            Eliminar
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowDetailModal(false);
+              setSelectedDefect(null);
+            }}
+          >
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
