@@ -19,8 +19,6 @@ const ReportePage = () => {
   const [dateFilterMode, setDateFilterMode] = useState('ayer');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  const [showFocalModal, setShowFocalModal] = useState(false);
-  const [currentUserName] = useState('');
 
   // Estado para controlar qué tipos de desarrollo están visibles
   const [visibleDevTypes, setVisibleDevTypes] = useState({});
@@ -62,12 +60,6 @@ const ReportePage = () => {
     selectedModule && isSelectedDevTypeDefect
       ? { moduleId: selectedModule }
       : 'skip'
-  );
-
-  // Cargar módulos donde el usuario es focal
-  const focalModules = useQuery(
-    api.reports.getFocalModules,
-    currentUserName ? { userName: currentUserName } : 'skip'
   );
 
   // Cargar todas las actividades del usuario seleccionado (sin filtrar por módulo)
@@ -494,60 +486,19 @@ const ReportePage = () => {
                           </td>
                           <td className="px-3 py-3 text-center align-middle">
                             {(() => {
-                              if (!module.tasks || module.tasks.length === 0) {
-                                return (
-                                  <span className="text-muted">Vacio</span>
-                                );
+                              const fechaFinal = module.fechaFinal;
+                              
+                              if (!fechaFinal || fechaFinal === '' || fechaFinal === 'null' || fechaFinal === 'undefined') {
+                                return <span className="text-muted">Vacío</span>;
                               }
-                              // Filtrar solo tareas con fechaFinal válida y no vacía
-                              console.log(
-                                'Module Tasks:',
-                                module.tasks?.fechaFinal
-                              );
-                              const fechasRaw = module.tasks.map(
-                                (t) => t.fechaFinal
-                              );
-                              const fechas = fechasRaw
-                                .filter(
-                                  (f) =>
-                                    f &&
-                                    String(f).trim() !== '' &&
-                                    f !== 'null' &&
-                                    f !== 'undefined' &&
-                                    /^\d{4}-\d{2}-\d{2}$/.test(f)
-                                )
-                                .map((f) => {
-                                  const [y, m, d] = f.split('-');
-                                  return new Date(
-                                    Date.UTC(
-                                      Number(y),
-                                      Number(m) - 1,
-                                      Number(d)
-                                    )
-                                  );
-                                });
-                              if (fechas.length === 0) {
-                                return (
-                                  <span className="text-muted">Vacio</span>
-                                );
+                              
+                              // Verificar formato válido
+                              if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaFinal)) {
+                                return <span className="text-muted">Vacío</span>;
                               }
-                              // Log para depuración
-                              console.log('Fechas finales crudas:', fechasRaw);
-                              console.log('Fechas válidas (Date):', fechas);
-                              // Obtener la mayor fecha como Date
-                              const maxFecha = fechas.reduce((a, b) =>
-                                a > b ? a : b
-                              );
-                              console.log('Fecha máxima encontrada:', maxFecha);
-                              // Mostrar en formato local amigable
-                              // Formatear la fecha máxima en UTC para evitar desfase de zona horaria
-                              const day = String(
-                                maxFecha.getUTCDate()
-                              ).padStart(2, '0');
-                              const month = String(
-                                maxFecha.getUTCMonth() + 1
-                              ).padStart(2, '0');
-                              const year = maxFecha.getUTCFullYear();
+                              
+                              // Convertir a formato dd/mm/yyyy
+                              const [year, month, day] = fechaFinal.split('-');
                               return <span>{`${day}/${month}/${year}`}</span>;
                             })()}
                           </td>
@@ -566,16 +517,21 @@ const ReportePage = () => {
                             const percentage = hasType
                               ? module.porcentajesPorTipo[type]
                               : null;
+                            
+                            // Verificar si es columna de defectos
+                            const isDefectType = String(type).toLowerCase().includes('defect') || 
+                                                String(type).toLowerCase().includes('defecto');
+                            
                             return (
                               <td
                                 key={type}
                                 className="px-2 py-3 text-center"
-                                onClick={(e) => {
+                                onClick={isDefectType ? (e) => {
                                   e.stopPropagation();
                                   handleModuleClick(module._id, type);
-                                }}
-                                style={{ cursor: 'pointer' }}
-                                title={`Ver actividades de ${type}`}
+                                } : undefined}
+                                style={isDefectType ? { cursor: 'pointer' } : undefined}
+                                title={isDefectType ? `Ver defectos de ${type}` : undefined}
                               >
                                 {percentage === null ? (
                                   <span className="text-muted">No aplica</span>
@@ -592,7 +548,7 @@ const ReportePage = () => {
                             );
                           })}
                           <td
-                            className="px-3 py-3"
+                            className="px-3 py-3 text-center"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleModuleClick(module._id, null);
@@ -1149,64 +1105,6 @@ const ReportePage = () => {
               setSelectedUser(null);
             }}
           >
-            Cerrar
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal de Módulos Focales */}
-      <Modal
-        show={showFocalModal}
-        onHide={() => setShowFocalModal(false)}
-        size="lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Mis Módulos como Focal - {currentUserName}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {focalModules && focalModules.length > 0 ? (
-            <div className="list-group">
-              {focalModules.map((module) => (
-                <div
-                  key={module._id}
-                  className="list-group-item list-group-item-action"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => {
-                    setSelectedModule(module._id);
-                    setSelectedDevType(null);
-                    setShowFocalModal(false);
-                    setShowModal(true);
-                  }}
-                >
-                  <div className="d-flex w-100 justify-content-between align-items-start">
-                    <div>
-                      <h6 className="mb-1">{module.nombre}</h6>
-                      <p className="mb-1 text-muted small">
-                        {module.descripcion}
-                      </p>
-                      <div className="mt-2">
-                        <span className="badge bg-primary me-2">
-                          {module.blockName}
-                        </span>
-                        <span className="badge bg-success me-2">
-                          {module.teamName}
-                        </span>
-                        <span className="badge bg-info">{module.estado}</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-muted" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="alert alert-warning">
-              No eres focal en ningún módulo o ingresa tu nombre correctamente.
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowFocalModal(false)}>
             Cerrar
           </Button>
         </Modal.Footer>

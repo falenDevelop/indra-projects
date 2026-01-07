@@ -35,7 +35,9 @@ export default defineSchema({
     estado: v.string(),
     moduleId: v.optional(v.id('modules')),
     isFocal: v.boolean(),
-  }),
+  })
+    .index('by_team', ['teamId'])
+    .index('by_module', ['moduleId']),
   blocks: defineTable({
     nombre: v.string(),
     projectId: v.optional(v.id('projects')),
@@ -43,7 +45,7 @@ export default defineSchema({
   block_modules: defineTable({
     blockId: v.id('blocks'),
     moduleId: v.id('modules'),
-  }),
+  }).index('by_block', ['blockId']),
   modules: defineTable({
     nombre: v.string(),
     descripcion: v.string(),
@@ -69,7 +71,7 @@ export default defineSchema({
     fechaInicio: v.optional(v.string()),
     fechaFinal: v.optional(v.string()),
     porcentaje: v.number(),
-  }),
+  }).index('by_module', ['moduleId']),
   task_activities: defineTable({
     taskId: v.id('module_tasks'),
     porcentajeAnterior: v.number(),
@@ -91,5 +93,5 @@ export default defineSchema({
     creadoPorXp: v.optional(v.string()),
     creadoAt: v.number(),
     ultimaActualizacionEstado: v.optional(v.number()),
-  }),
+  }).index('by_module', ['moduleId']),
 });
