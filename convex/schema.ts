@@ -27,6 +27,7 @@ export default defineSchema({
   teams: defineTable({
     nombre: v.string(),
     bloque: v.string(),
+    projectId: v.optional(v.id('projects')),
   }),
   team_members: defineTable({
     teamId: v.id('teams'),

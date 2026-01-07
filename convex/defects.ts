@@ -47,6 +47,7 @@ export const update = mutation({
     estado: v.string(),
     usuario: v.optional(v.string()),
     contrasena: v.optional(v.string()),
+    creadoAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...data } = args;

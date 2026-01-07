@@ -64,12 +64,15 @@ const DefectosPage = () => {
   const handleEditClick = (d) => {
     const id = d._id || d.id;
     setEditingId(id);
+    // Convertir timestamp a formato YYYY-MM-DD
+    const fechaStr = d.creadoAt ? new Date(d.creadoAt).toISOString().split('T')[0] : '';
     setNewDefect({
       moduleId: d.moduleId || '',
       ticket: d.ticket || '',
       data: d.data || '',
       comentario: d.comentario || '',
       estado: d.estado || estados[0] || '',
+      creadoAt: fechaStr,
     });
     setShowCreateModal(true);
   };
@@ -165,6 +168,34 @@ const DefectosPage = () => {
     return 'dark';
   };
 
+  const getDiasTranscurridos = (creadoAt, estado) => {
+    // No mostrar días para estados cerrados
+    if (!estado) return '—';
+    const estadoLower = estado.toLowerCase();
+    if (estadoLower.includes('resuel') || estadoLower.includes('descart')) {
+      return '—';
+    }
+    
+    if (!creadoAt) return '—';
+    
+    // Calcular días laborables (excluyendo sábados y domingos)
+    const fechaInicio = new Date(creadoAt);
+    const fechaFin = new Date();
+    let diasLaborables = 0;
+    
+    const current = new Date(fechaInicio);
+    while (current <= fechaFin) {
+      const diaSemana = current.getDay();
+      // 0 = domingo, 6 = sábado
+      if (diaSemana !== 0 && diaSemana !== 6) {
+        diasLaborables++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return diasLaborables;
+  };
+
   const updateDefect = useMutation(api.defects.update);
   const [updatingId, setUpdatingId] = useState(null);
   const removeDefect = useMutation(api.defects.remove);
@@ -183,6 +214,7 @@ const DefectosPage = () => {
     data: '',
     comentario: '',
     estado: estados[0] || '',
+    creadoAt: '',
   });
 
   const handleEditPruebas = () => {
@@ -262,6 +294,11 @@ const DefectosPage = () => {
           const data = parts[1];
           const comentario = parts.slice(2).join(', ');
 
+          // Usar la fecha del formulario si existe, sino usar Date.now()
+          const timestamp = newDefect.creadoAt 
+            ? new Date(newDefect.creadoAt).getTime() 
+            : Date.now();
+          
           await createDefect({
             moduleId: newDefect.moduleId,
             ticket,
@@ -270,7 +307,7 @@ const DefectosPage = () => {
             estado: newDefect.estado || 'Pendiente',
             creadoPor: currentUser?.nombre || 'Usuario',
             creadoPorXp: currentUser?.xp || 'N/A',
-            creadoAt: Date.now(),
+            creadoAt: timestamp,
           });
           successCount++;
         } catch (err) {
@@ -289,6 +326,7 @@ const DefectosPage = () => {
         data: '',
         comentario: '',
         estado: estados[0] || '',
+        creadoAt: '',
       });
       return;
     }
@@ -299,6 +337,11 @@ const DefectosPage = () => {
       return;
     }
     try {
+      // Convertir fecha string a timestamp
+      const timestamp = newDefect.creadoAt 
+        ? new Date(newDefect.creadoAt).getTime() 
+        : Date.now();
+      
       if (editingId) {
         await updateDefect({
           id: editingId,
@@ -306,6 +349,7 @@ const DefectosPage = () => {
           data: newDefect.data,
           comentario: newDefect.comentario,
           estado: newDefect.estado,
+          creadoAt: timestamp,
         });
       } else {
         await createDefect({
@@ -316,7 +360,7 @@ const DefectosPage = () => {
           estado: newDefect.estado,
           creadoPor: currentUser?.nombre || 'Usuario',
           creadoPorXp: currentUser?.xp || 'N/A',
-          creadoAt: Date.now(),
+          creadoAt: timestamp,
         });
       }
       setShowCreateModal(false);
@@ -327,6 +371,7 @@ const DefectosPage = () => {
         data: '',
         comentario: '',
         estado: estados[0] || '',
+        creadoAt: '',
       });
     } catch (err) {
       console.error('Error creando defecto:', err);
@@ -756,6 +801,17 @@ const DefectosPage = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-2">
+                  <Form.Label>Fecha de Registro</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={newDefect.creadoAt}
+                    onChange={(e) =>
+                      setNewDefect((s) => ({ ...s, creadoAt: e.target.value }))
+                    }
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-2">
                   <Form.Label>Data</Form.Label>
                   <Form.Control
                     value={newDefect.data}
@@ -833,6 +889,7 @@ const DefectosPage = () => {
                   data: '',
                   comentario: '',
                   estado: estados[0] || '',
+                  creadoAt: '',
                 });
               }}
             >
@@ -972,6 +1029,7 @@ const DefectosPage = () => {
 
       <Table striped bordered hover responsive>
         <colgroup>
+          <col style={{ width: '80px' }} />
           <col style={{ width: '200px' }} />
           <col style={{ width: '200px' }} />
           <col />
@@ -980,6 +1038,7 @@ const DefectosPage = () => {
         </colgroup>
         <thead>
           <tr>
+            <th>Días</th>
             <th>Feature</th>
             <th>Ticket</th>
             <th>Data</th>
@@ -988,8 +1047,21 @@ const DefectosPage = () => {
           </tr>
         </thead>
         <tbody>
-          {filtered.map((d) => (
+          {filtered.map((d) => {
+            const diasTranscurridos = getDiasTranscurridos(d.creadoAt, d.estado);
+            return (
             <tr key={d._id || JSON.stringify(d)}>
+              <td className="text-center">
+                {diasTranscurridos !== '—' ? (
+                  <Badge 
+                    bg={diasTranscurridos > 7 ? 'danger' : diasTranscurridos > 3 ? 'warning' : 'secondary'}
+                  >
+                    {diasTranscurridos}
+                  </Badge>
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
+              </td>
               <td>{getModuleName(d.moduleId)}</td>
               <td>
                 <a
@@ -1042,7 +1114,8 @@ const DefectosPage = () => {
                 </Button>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </Table>
 

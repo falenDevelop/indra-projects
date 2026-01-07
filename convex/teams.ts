@@ -11,6 +11,7 @@ export const create = mutation({
   args: {
     nombre: v.string(),
     bloque: v.string(),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert('teams', args);
@@ -22,6 +23,7 @@ export const update = mutation({
     id: v.id('teams'),
     nombre: v.string(),
     bloque: v.string(),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
     const { id, ...data } = args;
