@@ -128,6 +128,12 @@ function AppContent() {
       label: 'Defectos',
       path: '/defectos',
     });
+    allMenuItems.splice(3, 0, {
+      id: 'reporte-defectos',
+      icon: FaChartBar,
+      label: 'Reporte Defectos',
+      path: '/reporte-defectos',
+    });
   }
 
   // Filtrar menú según permisos del usuario

@@ -43,7 +43,10 @@ export const AuthProvider = ({ children }) => {
     // QA tiene acceso a defectos además de reporte/tracking
     if (currentUser?.perfil === 'QA') {
       return (
-        menuId === 'reporte' || menuId === 'tracking' || menuId === 'defectos'
+        menuId === 'reporte' || 
+        menuId === 'tracking' || 
+        menuId === 'defectos' || 
+        menuId === 'reporte-defectos'
       );
     }
 

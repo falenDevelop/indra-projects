@@ -20,6 +20,7 @@ import type * as modules from "../modules.js";
 import type * as projects from "../projects.js";
 import type * as providers from "../providers.js";
 import type * as reports from "../reports.js";
+import type * as reports_defects from "../reports_defects.js";
 import type * as seed from "../seed.js";
 import type * as task_activities from "../task_activities.js";
 import type * as team_members from "../team_members.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   projects: typeof projects;
   providers: typeof providers;
   reports: typeof reports;
+  reports_defects: typeof reports_defects;
   seed: typeof seed;
   task_activities: typeof task_activities;
   team_members: typeof team_members;
