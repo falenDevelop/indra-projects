@@ -64,8 +64,15 @@ const DefectosPage = () => {
   const handleEditClick = (d) => {
     const id = d._id || d.id;
     setEditingId(id);
-    // Convertir timestamp a formato YYYY-MM-DD
-    const fechaStr = d.creadoAt ? new Date(d.creadoAt).toISOString().split('T')[0] : '';
+    // Convertir timestamp a formato YYYY-MM-DD usando fecha local
+    let fechaStr = '';
+    if (d.creadoAt) {
+      const fecha = new Date(d.creadoAt);
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(fecha.getDate()).padStart(2, '0');
+      fechaStr = `${year}-${month}-${day}`;
+    }
     setNewDefect({
       moduleId: d.moduleId || '',
       ticket: d.ticket || '',
@@ -295,9 +302,14 @@ const DefectosPage = () => {
           const comentario = parts.slice(2).join(', ');
 
           // Usar la fecha del formulario si existe, sino usar Date.now()
-          const timestamp = newDefect.creadoAt 
-            ? new Date(newDefect.creadoAt).getTime() 
-            : Date.now();
+          let timestamp;
+          if (newDefect.creadoAt) {
+            // Crear fecha local sin conversión UTC
+            const [year, month, day] = newDefect.creadoAt.split('-').map(Number);
+            timestamp = new Date(year, month - 1, day).getTime();
+          } else {
+            timestamp = Date.now();
+          }
           
           await createDefect({
             moduleId: newDefect.moduleId,
@@ -337,10 +349,15 @@ const DefectosPage = () => {
       return;
     }
     try {
-      // Convertir fecha string a timestamp
-      const timestamp = newDefect.creadoAt 
-        ? new Date(newDefect.creadoAt).getTime() 
-        : Date.now();
+      // Convertir fecha string a timestamp usando fecha local
+      let timestamp;
+      if (newDefect.creadoAt) {
+        // Crear fecha local sin conversión UTC
+        const [year, month, day] = newDefect.creadoAt.split('-').map(Number);
+        timestamp = new Date(year, month - 1, day).getTime();
+      } else {
+        timestamp = Date.now();
+      }
       
       if (editingId) {
         await updateDefect({
@@ -1201,7 +1218,7 @@ const DefectosPage = () => {
                   <strong>Fecha de Creación:</strong>
                   <div className="mt-1">
                     {selectedDefect.creadoAt
-                      ? new Date(selectedDefect.creadoAt).toLocaleString(
+                      ? new Date(selectedDefect.creadoAt).toLocaleDateString(
                           'es-PE'
                         )
                       : '—'}
