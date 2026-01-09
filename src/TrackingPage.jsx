@@ -39,7 +39,7 @@ const TrackingPage = () => {
 
   const updateDefect = useMutation(api.defects.update);
 
-  const DEFECT_STATES = ['Validar QA', 'En Proceso'];
+  const DEFECT_STATES = ['Validar QA', 'En Proceso', 'Pendiente'];
 
   // local persistence removed — use Convex mutations instead
 
