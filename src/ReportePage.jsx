@@ -133,7 +133,7 @@ const ReportePage = () => {
     if (s === 'bloqueante') return 'danger';
     if (s === 'observado') return 'warning';
     if (s === 'validar qa' || s === 'validar QA'.toLowerCase()) return 'info';
-    if (s === 'procesos' || s === 'validacion banco') return 'primary';
+    if (s === 'En Proceso' || s === 'validacion banco') return 'primary';
     if (s === 'pendiente') return 'secondary';
     return 'dark';
   };
@@ -487,16 +487,25 @@ const ReportePage = () => {
                           <td className="px-3 py-3 text-center align-middle">
                             {(() => {
                               const fechaFinal = module.fechaFinal;
-                              
-                              if (!fechaFinal || fechaFinal === '' || fechaFinal === 'null' || fechaFinal === 'undefined') {
-                                return <span className="text-muted">Vacío</span>;
+
+                              if (
+                                !fechaFinal ||
+                                fechaFinal === '' ||
+                                fechaFinal === 'null' ||
+                                fechaFinal === 'undefined'
+                              ) {
+                                return (
+                                  <span className="text-muted">Vacío</span>
+                                );
                               }
-                              
+
                               // Verificar formato válido
                               if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaFinal)) {
-                                return <span className="text-muted">Vacío</span>;
+                                return (
+                                  <span className="text-muted">Vacío</span>
+                                );
                               }
-                              
+
                               // Convertir a formato dd/mm/yyyy
                               const [year, month, day] = fechaFinal.split('-');
                               return <span>{`${day}/${month}/${year}`}</span>;
@@ -517,21 +526,34 @@ const ReportePage = () => {
                             const percentage = hasType
                               ? module.porcentajesPorTipo[type]
                               : null;
-                            
+
                             // Verificar si es columna de defectos
-                            const isDefectType = String(type).toLowerCase().includes('defect') || 
-                                                String(type).toLowerCase().includes('defecto');
-                            
+                            const isDefectType =
+                              String(type).toLowerCase().includes('defect') ||
+                              String(type).toLowerCase().includes('defecto');
+
                             return (
                               <td
                                 key={type}
                                 className="px-2 py-3 text-center"
-                                onClick={isDefectType ? (e) => {
-                                  e.stopPropagation();
-                                  handleModuleClick(module._id, type);
-                                } : undefined}
-                                style={isDefectType ? { cursor: 'pointer' } : undefined}
-                                title={isDefectType ? `Ver defectos de ${type}` : undefined}
+                                onClick={
+                                  isDefectType
+                                    ? (e) => {
+                                        e.stopPropagation();
+                                        handleModuleClick(module._id, type);
+                                      }
+                                    : undefined
+                                }
+                                style={
+                                  isDefectType
+                                    ? { cursor: 'pointer' }
+                                    : undefined
+                                }
+                                title={
+                                  isDefectType
+                                    ? `Ver defectos de ${type}`
+                                    : undefined
+                                }
                               >
                                 {percentage === null ? (
                                   <span className="text-muted">No aplica</span>

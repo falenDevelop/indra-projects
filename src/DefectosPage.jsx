@@ -34,13 +34,11 @@ const DefectosPage = () => {
   const estados = [
     'Pendiente',
     'Validar QA',
-    'Procesos',
-    'Validacion Banco',
+    'En Proceso',
     'Observado',
     'Bloqueante',
     'Resuelto',
     'Descartado',
-    'Otro',
   ];
 
   const filtered = useMemo(() => {
@@ -182,14 +180,14 @@ const DefectosPage = () => {
     if (estadoLower.includes('resuel') || estadoLower.includes('descart')) {
       return '—';
     }
-    
+
     if (!creadoAt) return '—';
-    
+
     // Calcular días laborables (excluyendo sábados y domingos)
     const fechaInicio = new Date(creadoAt);
     const fechaFin = new Date();
     let diasLaborables = 0;
-    
+
     const current = new Date(fechaInicio);
     while (current <= fechaFin) {
       const diaSemana = current.getDay();
@@ -199,7 +197,7 @@ const DefectosPage = () => {
       }
       current.setDate(current.getDate() + 1);
     }
-    
+
     return diasLaborables;
   };
 
@@ -305,12 +303,14 @@ const DefectosPage = () => {
           let timestamp;
           if (newDefect.creadoAt) {
             // Crear fecha local sin conversión UTC
-            const [year, month, day] = newDefect.creadoAt.split('-').map(Number);
+            const [year, month, day] = newDefect.creadoAt
+              .split('-')
+              .map(Number);
             timestamp = new Date(year, month - 1, day).getTime();
           } else {
             timestamp = Date.now();
           }
-          
+
           await createDefect({
             moduleId: newDefect.moduleId,
             ticket,
@@ -358,7 +358,7 @@ const DefectosPage = () => {
       } else {
         timestamp = Date.now();
       }
-      
+
       if (editingId) {
         await updateDefect({
           id: editingId,
@@ -1065,72 +1065,81 @@ const DefectosPage = () => {
         </thead>
         <tbody>
           {filtered.map((d) => {
-            const diasTranscurridos = getDiasTranscurridos(d.creadoAt, d.estado);
+            const diasTranscurridos = getDiasTranscurridos(
+              d.creadoAt,
+              d.estado
+            );
             return (
-            <tr key={d._id || JSON.stringify(d)}>
-              <td className="text-center">
-                {diasTranscurridos !== '—' ? (
-                  <Badge 
-                    bg={diasTranscurridos > 7 ? 'danger' : diasTranscurridos > 3 ? 'warning' : 'secondary'}
+              <tr key={d._id || JSON.stringify(d)}>
+                <td className="text-center">
+                  {diasTranscurridos !== '—' ? (
+                    <Badge
+                      bg={
+                        diasTranscurridos > 7
+                          ? 'danger'
+                          : diasTranscurridos > 3
+                            ? 'warning'
+                            : 'secondary'
+                      }
+                    >
+                      {diasTranscurridos}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                </td>
+                <td>{getModuleName(d.moduleId)}</td>
+                <td>
+                  <a
+                    href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    {diasTranscurridos}
-                  </Badge>
-                ) : (
-                  <span className="text-muted">—</span>
-                )}
-              </td>
-              <td>{getModuleName(d.moduleId)}</td>
-              <td>
-                <a
-                  href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {d.ticket}
-                </a>
-              </td>
-              <td>{d.data ?? '—'}</td>
-              <td>
-                <div className="d-flex align-items-center gap-2">
-                  <span
-                    className={`badge bg-${estadoVariant(d.estado)} text-white`}
-                  >
-                    {d.estado}
-                  </span>
-                  <Form.Select
-                    value={d.estado}
-                    onChange={(e) => handleEstadoChange(d, e.target.value)}
-                    disabled={updatingId === (d._id || d.id)}
-                    size="sm"
-                    style={{ width: '140px' }}
-                  >
-                    {estados.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </div>
-                {updatingId === (d._id || d.id) && (
-                  <div className="mt-1">
-                    <Spinner animation="border" size="sm" />
+                    {d.ticket}
+                  </a>
+                </td>
+                <td>{d.data ?? '—'}</td>
+                <td>
+                  <div className="d-flex align-items-center gap-2">
+                    <span
+                      className={`badge bg-${estadoVariant(d.estado)} text-white`}
+                    >
+                      {d.estado}
+                    </span>
+                    <Form.Select
+                      value={d.estado}
+                      onChange={(e) => handleEstadoChange(d, e.target.value)}
+                      disabled={updatingId === (d._id || d.id)}
+                      size="sm"
+                      style={{ width: '140px' }}
+                    >
+                      {estados.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </Form.Select>
                   </div>
-                )}
-              </td>
-              <td className="text-center">
-                <Button
-                  variant="link"
-                  className="p-0 text-info"
-                  onClick={() => {
-                    setSelectedDefect(d);
-                    setShowDetailModal(true);
-                  }}
-                  aria-label="Ver detalle"
-                >
-                  <FaEye size={18} />
-                </Button>
-              </td>
-            </tr>
+                  {updatingId === (d._id || d.id) && (
+                    <div className="mt-1">
+                      <Spinner animation="border" size="sm" />
+                    </div>
+                  )}
+                </td>
+                <td className="text-center">
+                  <Button
+                    variant="link"
+                    className="p-0 text-info"
+                    onClick={() => {
+                      setSelectedDefect(d);
+                      setShowDetailModal(true);
+                    }}
+                    aria-label="Ver detalle"
+                  >
+                    <FaEye size={18} />
+                  </Button>
+                </td>
+              </tr>
             );
           })}
         </tbody>

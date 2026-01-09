@@ -39,17 +39,7 @@ const TrackingPage = () => {
 
   const updateDefect = useMutation(api.defects.update);
 
-  const DEFECT_STATES = [
-    'Pendiente',
-    'Validar QA',
-    'Procesos',
-    'Validacion Banco',
-    'Observado',
-    'Bloqueante',
-    'Resuelto',
-    'Descartado',
-    'Otro',
-  ];
+  const DEFECT_STATES = ['Validar QA', 'En Proceso'];
 
   // local persistence removed — use Convex mutations instead
 
@@ -652,7 +642,7 @@ const TrackingPage = () => {
                     if (s === 'observado') return 'warning';
                     if (s === 'validar qa' || s === 'validar QA'.toLowerCase())
                       return 'info';
-                    if (s === 'procesos' || s === 'validacion banco')
+                    if (s === 'En Proceso' || s === 'validacion banco')
                       return 'primary';
                     if (s === 'pendiente') return 'secondary';
                     return 'dark';
@@ -710,7 +700,7 @@ const TrackingPage = () => {
                           s === 'validar QA'.toLowerCase()
                         )
                           return 'info';
-                        if (s === 'procesos' || s === 'validacion banco')
+                        if (s === 'En Proceso' || s === 'validacion banco')
                           return 'primary';
                         if (s === 'pendiente') return 'secondary';
                         return 'dark';
