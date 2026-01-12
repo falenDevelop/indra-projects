@@ -25,9 +25,10 @@ export const create = mutation({
     moduleId: v.id('modules'),
     nombreActividad: v.string(),
     developmentTypeId: v.id('development_types'),
-    fechaInicio: v.string(),
-    fechaFinal: v.string(),
+    fechaInicio: v.optional(v.string()),
+    fechaFinal: v.optional(v.string()),
     porcentaje: v.number(),
+    porcentajeCompromiso: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert('module_tasks', args);
@@ -39,9 +40,10 @@ export const update = mutation({
     id: v.id('module_tasks'),
     nombreActividad: v.string(),
     developmentTypeId: v.id('development_types'),
-    fechaInicio: v.string(),
-    fechaFinal: v.string(),
+    fechaInicio: v.optional(v.string()),
+    fechaFinal: v.optional(v.string()),
     porcentaje: v.number(),
+    porcentajeCompromiso: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...data } = args;

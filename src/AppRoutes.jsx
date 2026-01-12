@@ -9,6 +9,7 @@ import ModulosPage from './ModulosPage';
 import DevelopmentTypesPage from './DevelopmentTypesPage';
 import TrackingPage from './TrackingPage';
 import ReportePage from './ReportePage';
+import DailyReportPage from './DailyReportPage';
 import DefectosPage from './DefectosPage';
 import ReporteDefectosPage from './ReporteDefectosPage';
 
@@ -38,6 +39,7 @@ const AppRoutes = () => {
 
       {/* Rutas accesibles para todos */}
       <Route path="/tracking" element={<TrackingPage />} />
+      <Route path="/reporte-diario" element={<DailyReportPage />} />
       <Route path="/reporte" element={<ReportePage />} />
 
       {/* Rutas solo para Lider Tecnico */}

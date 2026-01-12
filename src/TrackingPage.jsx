@@ -708,7 +708,7 @@ const TrackingPage = () => {
 
                       return (
                         <div
-                          key={d.id}
+                          key={d._id || d.id || d.ticket}
                           className="list-group-item d-flex justify-content-between align-items-start"
                         >
                           <div>
@@ -737,22 +737,34 @@ const TrackingPage = () => {
                             </div>
                           </div>
                           <div className="text-end">
-                            <Form.Select
-                              size="sm"
-                              value={d.estado}
-                              onChange={(e) =>
-                                handleChangeDefectState(d, e.target.value)
+                            {(() => {
+                              const s = String(d.estado || '').toLowerCase();
+                              if (s === 'resuelto' || s === 'descartado') {
+                                return null;
                               }
-                              style={{
-                                width: '160px',
-                              }}
-                            >
-                              {DEFECT_STATES.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </Form.Select>
+
+                              return (
+                                <div
+                                  className="d-flex flex-column align-items-end"
+                                  style={{ gap: '6px' }}
+                                >
+                                  <Form.Select
+                                    size="sm"
+                                    value={d.estado}
+                                    onChange={(e) =>
+                                      handleChangeDefectState(d, e.target.value)
+                                    }
+                                    style={{ width: '160px' }}
+                                  >
+                                    {DEFECT_STATES.map((s2) => (
+                                      <option key={s2} value={s2}>
+                                        {s2}
+                                      </option>
+                                    ))}
+                                  </Form.Select>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );

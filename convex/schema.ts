@@ -72,6 +72,7 @@ export default defineSchema({
     fechaInicio: v.optional(v.string()),
     fechaFinal: v.optional(v.string()),
     porcentaje: v.number(),
+    porcentajeCompromiso: v.optional(v.number()),
   }).index('by_module', ['moduleId']),
   task_activities: defineTable({
     taskId: v.id('module_tasks'),
@@ -88,6 +89,7 @@ export default defineSchema({
     data: v.optional(v.string()),
     comentario: v.optional(v.string()),
     estado: v.string(),
+    fechaCompromiso: v.optional(v.string()),
     usuario: v.optional(v.string()),
     contrasena: v.optional(v.string()),
     creadoPor: v.optional(v.string()),

@@ -414,6 +414,25 @@ const DefectosPage = () => {
     }
   };
 
+  const handleFechaCompromisoChange = async (defect, fecha) => {
+    const id = defect._id || defect.id;
+    if (!id) return;
+    setUpdatingId(id);
+    try {
+      await updateDefect({
+        id,
+        ticket: defect.ticket || '',
+        estado: defect.estado || '',
+        fechaCompromiso: fecha,
+      });
+    } catch (err) {
+      console.error('Error updating fechaCompromiso:', err);
+      alert('Error al actualizar la fecha de compromiso');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div>
       <h1>Defectos</h1>
@@ -1050,6 +1069,7 @@ const DefectosPage = () => {
           <col style={{ width: '200px' }} />
           <col style={{ width: '200px' }} />
           <col />
+          <col style={{ width: '180px' }} />
           <col style={{ width: '250px' }} />
           <col style={{ width: '60px' }} />
         </colgroup>
@@ -1059,6 +1079,7 @@ const DefectosPage = () => {
             <th>Feature</th>
             <th>Ticket</th>
             <th>Data</th>
+            <th>Fecha compromiso</th>
             <th>Estado</th>
             <th style={{ width: '60px' }}>Ver</th>
           </tr>
@@ -1099,6 +1120,35 @@ const DefectosPage = () => {
                   </a>
                 </td>
                 <td>{d.data ?? '—'}</td>
+                <td>
+                  {(() => {
+                    const key = (d.estado || '').toLowerCase();
+                    if (key === 'resuelto' || key === 'descartado') {
+                      return (
+                        <div>
+                          <small className="text-muted">
+                            {d.fechaCompromiso
+                              ? new Date(d.fechaCompromiso).toLocaleDateString()
+                              : '—'}
+                          </small>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Form.Control
+                        type="date"
+                        size="sm"
+                        value={d.fechaCompromiso || ''}
+                        onChange={(e) =>
+                          handleFechaCompromisoChange(d, e.target.value)
+                        }
+                        disabled={updatingId === (d._id || d.id)}
+                        style={{ width: '180px' }}
+                      />
+                    );
+                  })()}
+                </td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
                     <span

@@ -85,7 +85,18 @@ function AppContent() {
   }
 
   const allMenuItems = [
-    { id: 'reporte', icon: FaFileAlt, label: 'Reporte', path: '/reporte' },
+    {
+      id: 'reporte-diario',
+      icon: FaFileAlt,
+      label: 'Reporte Diario',
+      path: '/reporte-diario',
+    },
+    {
+      id: 'reporte',
+      icon: FaFileAlt,
+      label: 'Reporte General',
+      path: '/reporte',
+    },
     { id: 'tracking', icon: FaChartBar, label: 'Tracking', path: '/tracking' },
     { id: 'proyecto', icon: FaHome, label: 'Proyecto', path: '/proyecto' },
     {
