@@ -139,8 +139,14 @@ const ReportePage = () => {
   };
 
   const isYesterday = (timestamp) => {
+    const today = new Date();
+    // Si es lunes (getDay() === 1), restar 3 días para llegar al viernes
+    // Para los demás días, restar 1 día
+    const dayOfWeek = today.getDay();
+    const daysToSubtract = dayOfWeek === 1 ? 3 : 1;
+    
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setDate(yesterday.getDate() - daysToSubtract);
     yesterday.setHours(0, 0, 0, 0);
     const yesterdayEnd = new Date(yesterday);
     yesterdayEnd.setHours(23, 59, 59, 999);

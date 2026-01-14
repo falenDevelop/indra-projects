@@ -31,12 +31,16 @@ const toYMD = (date) => {
 
 const getEstadoVariant = (estado) => {
   if (!estado) return 'secondary';
-  const s = String(estado).toLowerCase();
+  const s = String(estado).toLowerCase().trim();
   if (s === 'resuelto') return 'success';
   if (s === 'descartado') return 'secondary';
   if (s === 'vencido') return 'danger';
-  if (s === 'en progreso' || s === 'en-progreso' || s === 'progreso')
+  if (s === 'bloqueante') return 'danger';
+  if (s === 'observado') return 'warning';
+  if (s === 'validar qa' || s === 'validarqa' || s === 'validar_qa') return 'info';
+  if (s === 'en progreso' || s === 'en-progreso' || s === 'progreso' || s === 'en proceso')
     return 'info';
+  if (s === 'pendiente') return 'secondary';
   return 'warning';
 };
 
@@ -153,7 +157,11 @@ const DailyReportPage = () => {
   // compute yesterday/today strings once (avoid impure calls during render)
   const { today, yesterday, todayStr, yesterdayStr } = useMemo(() => {
     const t = new Date();
-    const y = new Date(t.getTime() - 24 * 60 * 60 * 1000);
+    // Si es lunes (getDay() === 1), restar 3 días para llegar al viernes
+    // Para los demás días, restar 1 día
+    const dayOfWeek = t.getDay();
+    const daysToSubtract = dayOfWeek === 1 ? 3 : 1;
+    const y = new Date(t.getTime() - daysToSubtract * 24 * 60 * 60 * 1000);
     return {
       today: t,
       yesterday: y,
@@ -165,7 +173,7 @@ const DailyReportPage = () => {
   // derive lists for modal
   // (module-specific finished tasks, kept for reference)
   // const tasksDoneYesterday = (moduleTasks || []).filter((t) => t.fechaFinal === yesterdayStr);
-  const activitiesDoneYesterday = useMemo(() => {
+  const activitiesYesterdayAndToday = useMemo(() => {
     if (!modalMember) return [];
     const name = modalMember.nombre;
     return (allTaskActivities || [])
@@ -174,7 +182,9 @@ const DailyReportPage = () => {
         if (a.registradoPor !== name) return false;
         if (!a.createdAt) return false;
         const d = new Date(a.createdAt);
-        return toYMD(d) === yesterdayStr;
+        const ymd = toYMD(d);
+        // include activities registered yesterday OR today
+        return ymd === yesterdayStr || ymd === todayStr;
       })
       .map((a) => {
         const task = (allModuleTasks || []).find(
@@ -185,7 +195,7 @@ const DailyReportPage = () => {
           task,
         };
       });
-  }, [allTaskActivities, allModuleTasks, modalMember, yesterdayStr]);
+  }, [allTaskActivities, allModuleTasks, modalMember, yesterdayStr, todayStr]);
   const tasksForToday = (moduleTasks || []).filter((t) => {
     if (!t.fechaInicio && !t.fechaFinal) return false;
     const start = t.fechaInicio || t.fechaFinal;
@@ -194,13 +204,20 @@ const DailyReportPage = () => {
   });
 
   const openDefects = (defectsForModule || []).filter((d) => {
-    const s = String(d.estado || '').toLowerCase();
-    return s !== 'resuelto' && s !== 'descartado';
+    const s = String(d.estado || '').toLowerCase().trim();
+    // exclude resolved, discarded, observed and QA validation states
+    return (
+      s !== 'resuelto' &&
+      s !== 'descartado' &&
+      s !== 'validar qa' && 
+      s !== 'validarqa'
+    );
   });
 
   const overdueDefects = (defectsForModule || []).filter((d) => {
-    const s = String(d.estado || '').toLowerCase();
+    const s = String(d.estado || '').toLowerCase().trim();
     if (s === 'resuelto' || s === 'descartado') return false;
+    if (s === 'observado' || s === 'validar qa' || s === 'validarqa') return false;
     if (!d.fechaCompromiso) return false;
     // fechaCompromiso expected in YYYY-MM-DD so string compare works
     return d.fechaCompromiso < todayStr;
@@ -303,7 +320,12 @@ const DailyReportPage = () => {
         </Table>
       )}
 
-      <Modal show={showMemberModal} onHide={handleCloseModal} size="xl" fullscreen="md-down">
+      <Modal
+        show={showMemberModal}
+        onHide={handleCloseModal}
+        size="xl"
+        fullscreen="md-down"
+      >
         <Modal.Header closeButton className="border-bottom">
           <Modal.Title>
             {modalMember?.nombre}
@@ -319,23 +341,28 @@ const DailyReportPage = () => {
         <Modal.Body className="p-3">
           <Card className="mb-3 border">
             <Card.Header className="bg-light d-flex align-items-center">
-              <strong>Hecho Ayer</strong>
-              <span className="text-muted ms-2 small">{formatDate(yesterday)}</span>
+              <strong>Hecho (Ayer y Hoy)</strong>
+              <span className="text-muted ms-2 small">
+                {formatDate(yesterday)} / {formatDate(today)}
+              </span>
             </Card.Header>
             <Card.Body style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {activitiesDoneYesterday.length === 0 ? (
+              {activitiesYesterdayAndToday.length === 0 ? (
                 <div className="text-muted text-center py-3">
                   <i className="bi bi-inbox" style={{ fontSize: '2rem' }}></i>
-                  <div>No hay tareas registradas ayer.</div>
+                  <div>No hay tareas registradas ayer ni hoy.</div>
                 </div>
               ) : (
                 <ul className="list-unstyled mb-0">
-                  {activitiesDoneYesterday.map(({ activity, task }) => {
+                  {activitiesYesterdayAndToday.map(({ activity, task }) => {
                     const key =
-                      activity._id || `${activity.taskId}-${activity.createdAt}`;
-                    const taskName = task?.nombreActividad || 'Tarea registrada';
+                      activity._id ||
+                      `${activity.taskId}-${activity.createdAt}`;
+                    const taskName =
+                      task?.nombreActividad || 'Tarea registrada';
                     const moduleName = task
-                      ? modules.find((m) => m._id === task.moduleId)?.nombre || ''
+                      ? modules.find((m) => m._id === task.moduleId)?.nombre ||
+                        ''
                       : '';
                     const currentPct =
                       task?.porcentaje != null
@@ -354,7 +381,11 @@ const DailyReportPage = () => {
                             <div className="d-flex align-items-center">
                               <strong>{taskName}</strong>
                               {moduleName && (
-                                <Badge bg="secondary" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                                <Badge
+                                  bg="secondary"
+                                  className="ms-2"
+                                  style={{ fontSize: '0.7rem' }}
+                                >
                                   {moduleName}
                                 </Badge>
                               )}
@@ -365,12 +396,19 @@ const DailyReportPage = () => {
                               </div>
                             )}
                           </div>
-                          <div className="text-end ms-3" style={{ minWidth: '140px' }}>
+                          <div
+                            className="text-end ms-3"
+                            style={{ minWidth: '140px' }}
+                          >
                             <div className="mb-1 small">
-                              <Badge bg="secondary" className="w-100">Actual: {currentPct}</Badge>
+                              <Badge bg="secondary" className="w-100">
+                                Actual: {currentPct}
+                              </Badge>
                             </div>
                             <div className="small">
-                              <Badge bg="dark" className="w-100">Compromiso: {compromisoPct}</Badge>
+                              <Badge bg="dark" className="w-100">
+                                Compromiso: {compromisoPct}
+                              </Badge>
                             </div>
                           </div>
                         </div>
@@ -397,12 +435,10 @@ const DailyReportPage = () => {
                 <div className="list-group">
                   {tasksForToday.map((t) => {
                     const id = t._id || t.id || t.nombreActividad;
-                    const currentProgress = taskProgress[id] ?? t.porcentaje ?? 0;
+                    const currentProgress =
+                      taskProgress[id] ?? t.porcentaje ?? 0;
                     return (
-                      <div
-                        key={id}
-                        className="list-group-item"
-                      >
+                      <div key={id} className="list-group-item">
                         <div className="d-flex justify-content-between align-items-start mb-2">
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center">
@@ -412,15 +448,32 @@ const DailyReportPage = () => {
                               📅 {t.fechaInicio || '-'} → {t.fechaFinal || '-'}
                             </div>
                           </div>
-                          <div className="text-end ms-2" style={{ minWidth: '120px' }}>
+                          <div
+                            className="text-end ms-2"
+                            style={{ minWidth: '120px' }}
+                          >
                             <div className="mb-1">
-                              <Badge bg="dark" className="w-100" style={{ fontSize: '0.75rem' }}>
-                                Compromiso: {t.porcentajeCompromiso != null ? `${t.porcentajeCompromiso}%` : '—'}
+                              <Badge
+                                bg="dark"
+                                className="w-100"
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                Compromiso:{' '}
+                                {t.porcentajeCompromiso != null
+                                  ? `${t.porcentajeCompromiso}%`
+                                  : '—'}
                               </Badge>
                             </div>
                             <div>
-                              <Badge bg="secondary" className="w-100" style={{ fontSize: '0.75rem' }}>
-                                Actual: {t.porcentaje != null ? `${t.porcentaje}%` : '0%'}
+                              <Badge
+                                bg="secondary"
+                                className="w-100"
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                Actual:{' '}
+                                {t.porcentaje != null
+                                  ? `${t.porcentaje}%`
+                                  : '0%'}
                               </Badge>
                             </div>
                           </div>
@@ -494,7 +547,10 @@ const DailyReportPage = () => {
               </h6>
               {openDefects.length === 0 ? (
                 <div className="text-muted text-center py-2 mb-3">
-                  <i className="bi bi-check-circle" style={{ fontSize: '1.5rem' }}></i>
+                  <i
+                    className="bi bi-check-circle"
+                    style={{ fontSize: '1.5rem' }}
+                  ></i>
                   <div className="small">No hay defectos abiertos.</div>
                 </div>
               ) : (
@@ -507,9 +563,76 @@ const DailyReportPage = () => {
                           <div className="flex-grow-1">
                             <div className="d-flex align-items-center mb-1">
                               <strong>{d.ticket}</strong>
-                              <small className="text-muted ms-2">{d.data}</small>
+                              <small className="text-muted ms-2">
+                                {d.data}
+                              </small>
                             </div>
-                            <div className="small text-muted ms-4">{d.comentario}</div>
+                            <div className="small text-muted ms-4">
+                              {d.comentario}
+                            </div>
+                          </div>
+                          <div
+                            className="text-end d-flex flex-column align-items-end ms-2"
+                            style={{ gap: '6px', minWidth: '170px' }}
+                          >
+                            <Form.Control
+                              type="date"
+                              size="sm"
+                              value={d.fechaCompromiso || ''}
+                              onChange={(e) =>
+                                handleFechaCompromisoChange(d, e.target.value)
+                              }
+                              disabled={updatingId === id}
+                              style={{ width: '160px' }}
+                            />
+                            <Badge
+                              bg={getEstadoVariant(d.estado)}
+                              className="w-100"
+                            >
+                              {d.estado}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <h6 className="text-muted mb-2">
+                Vencidos ({overdueDefects.length})
+              </h6>
+              {overdueDefects.length === 0 ? (
+                <div className="text-muted text-center py-2">
+                  <i
+                    className="bi bi-check-circle"
+                    style={{ fontSize: '1.5rem' }}
+                  ></i>
+                  <div className="small">No hay defectos vencidos.</div>
+                </div>
+              ) : (
+                <div className="list-group">
+                  {overdueDefects.map((d) => {
+                    const id = d._id || d.id || d.ticket;
+                    return (
+                      <div key={`overdue-${id}`} className="list-group-item">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center mb-1">
+                              <strong>{d.ticket}</strong>
+                              <small className="text-muted ms-2">
+                                {d.data}
+                              </small>
+                            </div>
+                            <div className="small text-muted ms-4">
+                              {d.comentario}
+                            </div>
+                            <div className="small text-muted ms-4">
+                              Compromiso:{' '}
+                              {d.fechaCompromiso
+                                ? formatDate(d.fechaCompromiso)
+                                : '—'}
+                            </div>
                           </div>
                           <div
                             className="text-end d-flex flex-column align-items-end ms-2"
@@ -526,57 +649,7 @@ const DailyReportPage = () => {
                               style={{ width: '160px' }}
                             />
                             <Badge bg={getEstadoVariant(d.estado)} className="w-100">
-                              {d.estado}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <h6 className="text-muted mb-2">
-                Vencidos ({overdueDefects.length})
-              </h6>
-              {overdueDefects.length === 0 ? (
-                <div className="text-muted text-center py-2">
-                  <i className="bi bi-check-circle" style={{ fontSize: '1.5rem' }}></i>
-                  <div className="small">No hay defectos vencidos.</div>
-                </div>
-              ) : (
-                <div className="list-group">
-                  {overdueDefects.map((d) => {
-                    const id = d._id || d.id || d.ticket;
-                    return (
-                      <div key={`overdue-${id}`} className="list-group-item">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div className="flex-grow-1">
-                            <div className="d-flex align-items-center mb-1">
-                              <strong>{d.ticket}</strong>
-                              <small className="text-muted ms-2">{d.data}</small>
-                            </div>
-                            <div className="small text-muted ms-4">{d.comentario}</div>
-                            <div className="small text-muted ms-4">
-                              Compromiso: {d.fechaCompromiso ? formatDate(d.fechaCompromiso) : '—'}
-                            </div>
-                          </div>
-                          <div
-                            className="text-end d-flex flex-column align-items-end ms-2"
-                            style={{ gap: '6px', minWidth: '170px' }}
-                          >
-                            <Form.Control
-                              type="date"
-                              size="sm"
-                              value={d.fechaCompromiso || ''}
-                              onChange={(e) =>
-                                handleFechaCompromisoChange(d, e.target.value)
-                              }
-                              disabled={updatingId === id}
-                              style={{ width: '160px' }}
-                            />
-                            <Badge bg="danger" className="w-100">
-                              VENCIDO
+                              {d.estado || 'Sin Estado'}
                             </Badge>
                           </div>
                         </div>
