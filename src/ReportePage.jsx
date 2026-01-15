@@ -188,13 +188,19 @@ const ReportePage = () => {
 
   // Inicializar todos los tipos como visibles cuando cambien los developmentTypes
   React.useEffect(() => {
-    if (developmentTypes.length > 0) {
-      const allVisible = {};
+    if (developmentTypes.length === 0) return;
+    setVisibleDevTypes((prev = {}) => {
+      // preserve previous selections, but ensure new types default to true
+      const merged = { ...prev };
       developmentTypes.forEach((type) => {
-        allVisible[type] = true;
+        if (merged[type] === undefined) merged[type] = true;
       });
-      setVisibleDevTypes(allVisible);
-    }
+      // remove any keys that no longer exist in developmentTypes
+      Object.keys(merged).forEach((k) => {
+        if (!developmentTypes.includes(k)) delete merged[k];
+      });
+      return merged;
+    });
   }, [developmentTypes]);
 
   // Obtener solo los tipos visibles
