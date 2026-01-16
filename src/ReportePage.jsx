@@ -155,13 +155,27 @@ const ReportePage = () => {
     return activityDate >= yesterday && activityDate <= yesterdayEnd;
   };
 
+  const isToday = (timestamp) => {
+    const today = new Date();
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(today);
+    end.setHours(23, 59, 59, 999);
+    const activityDate = new Date(timestamp);
+    return activityDate >= start && activityDate <= end;
+  };
+
+  const isRecent = (timestamp) => {
+    return isYesterday(timestamp) || isToday(timestamp);
+  };
+
   // Abrir automáticamente las tareas con actividades de ayer al mostrar el modal
   React.useEffect(() => {
     if (showModal && moduleActivities && moduleActivities.tasks) {
       const newExpanded = {};
       moduleActivities.tasks.forEach((task) => {
         if (
-          task.activities.some((activity) => isYesterday(activity.createdAt))
+          task.activities.some((activity) => isRecent(activity.createdAt))
         ) {
           newExpanded[task._id] = true;
         } else {
@@ -769,6 +783,15 @@ const ReportePage = () => {
                     : true
                 )
                 .sort((a, b) => {
+                  const hasRecentA = (a.activities || []).some((act) =>
+                    isRecent(act.createdAt)
+                  );
+                  const hasRecentB = (b.activities || []).some((act) =>
+                    isRecent(act.createdAt)
+                  );
+                  if (hasRecentA && !hasRecentB) return -1;
+                  if (!hasRecentA && hasRecentB) return 1;
+
                   const cleanNum = (v) => {
                     if (v === null || v === undefined) return 0;
                     const s = String(v).replace(/[^0-9.-]/g, '');
@@ -836,7 +859,7 @@ const ReportePage = () => {
                                 );
                               })
                               .map((activity) => {
-                                const fromYesterday = isYesterday(
+                                const isRecentActivity = isRecent(
                                   activity.createdAt
                                 );
                                 return (
@@ -844,10 +867,10 @@ const ReportePage = () => {
                                     key={activity._id}
                                     className="list-group-item"
                                     style={{
-                                      backgroundColor: fromYesterday
+                                      backgroundColor: isRecentActivity
                                         ? '#fff3cd'
                                         : 'transparent',
-                                      borderLeft: fromYesterday
+                                      borderLeft: isRecentActivity
                                         ? '4px solid #ffc107'
                                         : 'none',
                                     }}

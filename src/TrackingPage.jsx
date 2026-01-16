@@ -750,12 +750,15 @@ const TrackingPage = () => {
                                 >
                                   <Form.Select
                                     size="sm"
-                                    value={d.estado}
-                                    onChange={(e) =>
-                                      handleChangeDefectState(d, e.target.value)
-                                    }
+                                    value={""}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (v === '') return; // placeholder: no action
+                                      handleChangeDefectState(d, v);
+                                    }}
                                     style={{ width: '160px' }}
                                   >
+                                    <option value="">Seleccione</option>
                                     {DEFECT_STATES.map((s2) => (
                                       <option key={s2} value={s2}>
                                         {s2}

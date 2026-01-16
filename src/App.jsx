@@ -85,12 +85,12 @@ function AppContent() {
   }
 
   const allMenuItems = [
-    {
-      id: 'reporte-diario',
-      icon: FaFileAlt,
-      label: 'Reporte Diario',
-      path: '/reporte-diario',
-    },
+    // {
+    //   id: 'reporte-diario',
+    //   icon: FaFileAlt,
+    //   label: 'Reporte Diario',
+    //   path: '/reporte-diario',
+    // },
     {
       id: 'reporte',
       icon: FaFileAlt,
@@ -139,12 +139,12 @@ function AppContent() {
       label: 'Defectos',
       path: '/defectos',
     });
-    allMenuItems.splice(3, 0, {
-      id: 'reporte-defectos',
-      icon: FaChartBar,
-      label: 'Reporte Defectos',
-      path: '/reporte-defectos',
-    });
+    // allMenuItems.splice(3, 0, {
+    //   id: 'reporte-defectos',
+    //   icon: FaChartBar,
+    //   label: 'Reporte Defectos',
+    //   path: '/reporte-defectos',
+    // });
   }
 
   // Filtrar menú según permisos del usuario
