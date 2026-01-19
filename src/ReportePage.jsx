@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { ChevronDown, ChevronRight, Activity } from 'lucide-react';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal, Button, Accordion } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ReportePage = () => {
@@ -711,56 +711,128 @@ const ReportePage = () => {
                     );
                   })()}
 
-                  {/* Listado de defectos ordenado por estado */}
-                  <div className="list-group">
-                    {[...defectsForModule]
-                      .sort((a, b) => {
-                        const ea = String(a.estado || '').toLowerCase();
-                        const eb = String(b.estado || '').toLowerCase();
-                        return ea.localeCompare(eb, 'es', {
-                          sensitivity: 'base',
-                        });
-                      })
-                      .map((d) => (
-                        <div
-                          key={d.id}
-                          className="list-group-item d-flex justify-content-between align-items-start"
-                        >
-                          <div>
-                            <div className="fw-bold d-flex align-items-center gap-2">
-                              <span
-                                className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
-                              >
-                                {d.estado}
-                              </span>
-                              <a
-                                href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {d.ticket}
-                              </a>
+                  {/* Listado de defectos: abiertos arriba, resueltos/descartados en accordion abajo */}
+                  {(() => {
+                    const byEstado = (d) => (d.estado || '').toString().toLowerCase();
+                    const resolved = defectsForModule.filter((d) => byEstado(d).includes('resuel'));
+                    const discarded = defectsForModule.filter((d) => byEstado(d).includes('descart'));
+                    const others = defectsForModule.filter(
+                      (d) => !byEstado(d).includes('resuel') && !byEstado(d).includes('descart')
+                    );
+
+                    return (
+                      <>
+                        {/* Otros defectos (arriba) */}
+                        <div className="mb-3">
+                          <h6>Defectos Activos</h6>
+                          {others.length === 0 ? (
+                            <div className="text-muted">No hay defectos activos.</div>
+                          ) : (
+                            <div className="list-group">
+                              {[...others]
+                                .sort((a, b) => {
+                                  const ea = String(a.estado || '').toLowerCase();
+                                  const eb = String(b.estado || '').toLowerCase();
+                                  return ea.localeCompare(eb, 'es', { sensitivity: 'base' });
+                                })
+                                .map((d) => (
+                                  <div
+                                    key={d._id || d.id}
+                                    className="list-group-item d-flex justify-content-between align-items-start"
+                                  >
+                                    <div>
+                                      <div className="fw-bold d-flex align-items-center gap-2">
+                                        <span
+                                          className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}
+                                        >
+                                          {d.estado}
+                                        </span>
+                                        <a
+                                          href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          {d.ticket}
+                                        </a>
+                                      </div>
+                                      {d.data && (
+                                        <div className="small text-primary">Data: {d.data}</div>
+                                      )}
+                                      <div className="small">{d.comentario}</div>
+                                      <div className="small text-muted mt-1">Creado por: {d.creadoPor || '-'}</div>
+                                    </div>
+                                    <div className="text-end">
+                                      <small className="text-muted">
+                                        {d.creadoAt ? new Date(d.creadoAt).toLocaleString('es-PE') : ''}
+                                      </small>
+                                    </div>
+                                  </div>
+                                ))}
                             </div>
-                            {d.data && (
-                              <div className="small text-primary">
-                                Data: {d.data}
-                              </div>
-                            )}
-                            <div className="small">{d.comentario}</div>
-                            <div className="small text-muted mt-1">
-                              Creado por: {d.creadoPor || '-'}
-                            </div>
-                          </div>
-                          <div className="text-end">
-                            <small className="text-muted">
-                              {d.creadoAt
-                                ? new Date(d.creadoAt).toLocaleString('es-PE')
-                                : ''}
-                            </small>
-                          </div>
+                          )}
                         </div>
-                      ))}
-                  </div>
+
+                        {/* Accordion con Resueltos y Descartados (abajo) */}
+                        <Accordion>
+                          <Accordion.Item eventKey="0">
+                            <Accordion.Header>Resueltos ({resolved.length})</Accordion.Header>
+                            <Accordion.Body>
+                              {resolved.length === 0 ? (
+                                <div className="text-muted">No hay defectos resueltos.</div>
+                              ) : (
+                                <div className="list-group">
+                                  {resolved.map((d) => (
+                                    <div key={d._id || d.id} className="list-group-item d-flex justify-content-between align-items-start">
+                                      <div>
+                                        <div className="fw-bold d-flex align-items-center gap-2">
+                                          <span className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}>{d.estado}</span>
+                                          <a href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`} target="_blank" rel="noopener noreferrer">{d.ticket}</a>
+                                        </div>
+                                        {d.data && <div className="small text-primary">Data: {d.data}</div>}
+                                        <div className="small">{d.comentario}</div>
+                                        <div className="small text-muted mt-1">Creado por: {d.creadoPor || '-'}</div>
+                                      </div>
+                                      <div className="text-end">
+                                        <small className="text-muted">{d.creadoAt ? new Date(d.creadoAt).toLocaleString('es-PE') : ''}</small>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </Accordion.Body>
+                          </Accordion.Item>
+
+                          <Accordion.Item eventKey="1">
+                            <Accordion.Header>Descartados ({discarded.length})</Accordion.Header>
+                            <Accordion.Body>
+                              {discarded.length === 0 ? (
+                                <div className="text-muted">No hay defectos descartados.</div>
+                              ) : (
+                                <div className="list-group">
+                                  {discarded.map((d) => (
+                                    <div key={d._id || d.id} className="list-group-item d-flex justify-content-between align-items-start">
+                                      <div>
+                                        <div className="fw-bold d-flex align-items-center gap-2">
+                                          <span className={`badge bg-${getDefectBadgeVariant(d.estado)} text-white`}>{d.estado}</span>
+                                          <a href={`https://jira.globaldevtools.bbva.com/browse/${d.ticket}`} target="_blank" rel="noopener noreferrer">{d.ticket}</a>
+                                        </div>
+                                        {d.data && <div className="small text-primary">Data: {d.data}</div>}
+                                        <div className="small">{d.comentario}</div>
+                                        <div className="small text-muted mt-1">Creado por: {d.creadoPor || '-'}</div>
+                                      </div>
+                                      <div className="text-end">
+                                        <small className="text-muted">{d.creadoAt ? new Date(d.creadoAt).toLocaleString('es-PE') : ''}</small>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </Accordion.Body>
+                          </Accordion.Item>
+                        </Accordion>
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>
